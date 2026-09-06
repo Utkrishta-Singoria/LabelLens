@@ -1,0 +1,10 @@
+{
+  "name": "deploy-ready Legal Metrology Compliance System",
+  "description": "LabelLens: AI-powered compliance checking and label verification system for packaged commodities under the Legal Metrology (Packaged Commodities) Rules, 2011 by the Ministry of Consumer Affairs (DoCA).",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,504 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ==========================================================================
+   Theme Framework: Light Mode (Warm Heritage Theme) & Dark Mode
+   - Background Color: #F7F2EA
+   - Big Texts: #8E562E
+   - Small Texts: #332421
+   - Heading (LabelLens): #D4AF37
+   - Every Green: #2D5D4F
+   - Red: Remains same (Rose / Red)
+   - Remaining Colors adjusted to match warm ivory, saddle brown & gold theme
+   ========================================================================== */
+
+html:not(.dark) {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* Base Viewport & Root Backgrounds */
+html:not(.dark) body,
+html:not(.dark) #root,
+html:not(.dark) .min-h-screen,
+html:not(.dark) .bg-slate-50,
+html:not(.dark) .bg-\[\#0A0C10\] {
+  background-color: #F7F2EA !important;
+  color: #332421 !important;
+}
+
+/* Surface containers mapped for light theme */
+html:not(.dark) .bg-\[\#0F1117\],
+html:not(.dark) .bg-\[\#0B0F17\],
+html:not(.dark) .bg-\[\#0C0E14\],
+html:not(.dark) .bg-slate-900,
+html:not(.dark) .bg-slate-900\/70,
+html:not(.dark) .bg-slate-900\/80,
+html:not(.dark) .bg-slate-900\/90 {
+  background-color: #FFFFFF !important;
+  border-color: #E2D7C7 !important;
+  box-shadow: 0 1px 3px 0 rgba(51, 36, 33, 0.05), 0 1px 2px -1px rgba(51, 36, 33, 0.05) !important;
+}
+
+html:not(.dark) .bg-\[\#0B0F17\]\/95,
+html:not(.dark) header {
+  background-color: rgba(247, 242, 234, 0.96) !important;
+  border-color: #E2D7C7 !important;
+  box-shadow: 0 1px 3px 0 rgba(51, 36, 33, 0.04) !important;
+}
+
+/* Secondary surface wells, inner badges, and card headers */
+html:not(.dark) .bg-\[\#07090E\],
+html:not(.dark) .bg-\[\#07090D\],
+html:not(.dark) .bg-slate-950,
+html:not(.dark) .bg-slate-950\/50,
+html:not(.dark) .bg-slate-950\/60,
+html:not(.dark) .bg-slate-950\/70,
+html:not(.dark) .bg-slate-950\/80,
+html:not(.dark) .bg-slate-800,
+html:not(.dark) .bg-slate-800\/80,
+html:not(.dark) .bg-slate-800\/90,
+html:not(.dark) .bg-slate-100,
+html:not(.dark) .bg-slate-100\/90 {
+  background-color: #EFE8DC !important;
+  border-color: #E2D7C7 !important;
+}
+
+html:not(.dark) .bg-slate-900\/40,
+html:not(.dark) .bg-slate-800\/30 {
+  background-color: #F7F2EA !important;
+}
+
+/* Borders in light mode */
+html:not(.dark) .border-slate-800,
+html:not(.dark) .border-slate-800\/50,
+html:not(.dark) .border-slate-800\/60,
+html:not(.dark) .border-slate-800\/70,
+html:not(.dark) .border-slate-800\/80,
+html:not(.dark) .border-slate-800\/90,
+html:not(.dark) .border-slate-700,
+html:not(.dark) .border-slate-700\/60,
+html:not(.dark) .border-slate-700\/80,
+html:not(.dark) .border-slate-200 {
+  border-color: #E2D7C7 !important;
+}
+
+html:not(.dark) .divide-slate-800,
+html:not(.dark) .divide-slate-800\/60,
+html:not(.dark) .divide-slate-800\/80 {
+  border-color: #E2D7C7 !important;
+}
+
+/* ==========================================================================
+   Heading (LabelLens): #D4AF37
+   ========================================================================== */
+html:not(.dark) .packcheck-heading,
+html:not(.dark) .labellens-heading,
+.packcheck-heading,
+.labellens-heading {
+  color: #D4AF37 !important;
+}
+
+/* ==========================================================================
+   Big Texts: #8E562E
+   ========================================================================== */
+html:not(.dark) h1:not(.packcheck-heading):not(.labellens-heading):not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]),
+html:not(.dark) h2:not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]),
+html:not(.dark) h3:not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]),
+html:not(.dark) h4:not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]),
+html:not(.dark) h5:not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]),
+html:not(.dark) h6:not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]),
+html:not(.dark) .text-4xl:not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]),
+html:not(.dark) .text-3xl:not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]),
+html:not(.dark) .text-2xl:not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]),
+html:not(.dark) .text-xl:not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]),
+html:not(.dark) .text-lg.font-bold:not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]),
+html:not(.dark) .text-lg.font-semibold:not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]),
+html:not(.dark) .text-base.font-bold:not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]),
+html:not(.dark) .text-base.font-extrabold:not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]),
+html:not(.dark) .big-text {
+  color: #8E562E !important;
+}
+
+html:not(.dark) h1.text-white,
+html:not(.dark) h2.text-white,
+html:not(.dark) h3.text-white,
+html:not(.dark) h4.text-white,
+html:not(.dark) .text-white.font-bold,
+html:not(.dark) .text-white.font-black,
+html:not(.dark) .text-white.font-extrabold {
+  color: #8E562E !important;
+}
+
+/* ==========================================================================
+   Small Texts: #332421
+   ========================================================================== */
+html:not(.dark) p,
+html:not(.dark) label,
+html:not(.dark) td,
+html:not(.dark) th,
+html:not(.dark) li,
+html:not(.dark) .text-slate-100:not(button):not(button *):not(.text-white-force),
+html:not(.dark) .text-slate-200:not(button):not(button *):not(.text-white-force),
+html:not(.dark) .text-slate-300:not(button):not(button *):not(.text-white-force),
+html:not(.dark) .text-slate-700:not(button):not(button *):not(.text-white-force),
+html:not(.dark) .text-slate-800:not(button):not(button *):not(.text-white-force) {
+  color: #332421 !important;
+}
+
+html:not(.dark) span:not(button *):not(.text-white-force):not(.packcheck-heading):not(.labellens-heading):not([class*="text-rose"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-green"]):not([class*="text-\[\#D4AF37\]"]):not([class*="text-\[\#8E562E\]"]):not([class*="text-\[\#2D5D4F\]"]):not(.bg-sky-500 *):not(.bg-\[\#8E562E\] *):not(.bg-\[\#2D5D4F\] *):not(.bg-rose-500 *) {
+  color: #332421;
+}
+
+/* Secondary muted small text (warm espresso with gentle hierarchy) */
+html:not(.dark) .text-slate-400,
+html:not(.dark) .text-slate-500 {
+  color: rgba(51, 36, 33, 0.75) !important;
+}
+
+html:not(.dark) .text-slate-600 {
+  color: rgba(51, 36, 33, 0.6) !important;
+}
+
+/* Buttons and colored pills containing white text remain white */
+.bg-sky-500 .text-white,
+.bg-sky-600 .text-white,
+.bg-\[\#8E562E\] .text-white,
+.bg-\[\#2D5D4F\] .text-white,
+.bg-rose-600 .text-white,
+.bg-rose-500 .text-white,
+button.bg-sky-500,
+button.bg-sky-500 *:not(.nav-badge-active):not([class*="bg-white"]):not([class*="text-\[\#8E562E\]"]):not([class*="text-\[\#2D5D4F\]"]):not([class*="text-sky"]),
+button.bg-\[\#8E562E\],
+button.bg-\[\#8E562E\] *:not(.nav-badge-active):not([class*="bg-white"]):not([class*="text-\[\#8E562E\]"]):not([class*="text-\[\#2D5D4F\]"]),
+button.bg-\[\#2D5D4F\],
+button.bg-\[\#2D5D4F\] *:not(.nav-badge-active):not([class*="bg-white"]),
+.text-white-force {
+  color: #ffffff !important;
+}
+
+/* Navigation scanner badge contrast */
+.nav-badge-active {
+  background-color: #FFFFFF !important;
+  color: #8E562E !important;
+  border: 1px solid rgba(142, 86, 46, 0.25) !important;
+  box-shadow: 0 1px 2px rgba(51, 36, 33, 0.12) !important;
+}
+
+html.dark .nav-badge-active {
+  background-color: #FFFFFF !important;
+  color: #0369a1 !important;
+  border: 1px solid rgba(2, 132, 199, 0.3) !important;
+}
+
+.nav-badge-inactive {
+  background-color: #8E562E !important;
+  color: #FFFFFF !important;
+}
+
+html.dark .nav-badge-inactive {
+  background-color: #0ea5e9 !important;
+  color: #FFFFFF !important;
+}
+
+/* Secondary / Neutral button text in light mode - ensures labels like Camera Scan, Edit Report, Return to Scanner are high contrast */
+html:not(.dark) button.bg-slate-950:not(.bg-sky-500):not(.bg-\[\#8E562E\]):not(.bg-\[\#2D5D4F\]):not(.bg-rose-600):not(.bg-emerald-600),
+html:not(.dark) button.bg-slate-900:not(.bg-sky-500):not(.bg-\[\#8E562E\]):not(.bg-\[\#2D5D4F\]):not(.bg-rose-600):not(.bg-emerald-600),
+html:not(.dark) button.bg-slate-800:not(.bg-sky-500):not(.bg-\[\#8E562E\]):not(.bg-\[\#2D5D4F\]):not(.bg-rose-600):not(.bg-emerald-600),
+html:not(.dark) button.bg-\[\#0A0C10\]:not(.bg-sky-500):not(.bg-\[\#8E562E\]):not(.bg-\[\#2D5D4F\]):not(.bg-rose-600):not(.bg-emerald-600),
+html:not(.dark) button.border-slate-700:not(.bg-sky-500):not(.bg-\[\#8E562E\]):not(.bg-\[\#2D5D4F\]):not(.bg-rose-600):not(.bg-emerald-600) {
+  background-color: #FFFFFF !important;
+  border-color: #D8CCC0 !important;
+  color: #332421 !important;
+}
+
+html:not(.dark) button.bg-slate-950:not(.bg-sky-500):not(.bg-\[\#8E562E\]):not(.bg-\[\#2D5D4F\]):not(.bg-rose-600):not(.bg-emerald-600):hover,
+html:not(.dark) button.bg-slate-900:not(.bg-sky-500):not(.bg-\[\#8E562E\]):not(.bg-\[\#2D5D4F\]):not(.bg-rose-600):not(.bg-emerald-600):hover,
+html:not(.dark) button.bg-slate-800:not(.bg-sky-500):not(.bg-\[\#8E562E\]):not(.bg-\[\#2D5D4F\]):not(.bg-rose-600):not(.bg-emerald-600):hover,
+html:not(.dark) button.bg-\[\#0A0C10\]:not(.bg-sky-500):not(.bg-\[\#8E562E\]):not(.bg-\[\#2D5D4F\]):not(.bg-rose-600):not(.bg-emerald-600):hover {
+  background-color: #EFE8DC !important;
+  border-color: #C8B9AA !important;
+}
+
+html:not(.dark) button.bg-slate-950 span:not(.text-white-force),
+html:not(.dark) button.bg-slate-900 span:not(.text-white-force),
+html:not(.dark) button.bg-slate-800 span:not(.text-white-force),
+html:not(.dark) button.bg-\[\#0A0C10\] span:not(.text-white-force),
+html:not(.dark) button.border-slate-700 span:not(.text-white-force) {
+  color: #332421 !important;
+}
+
+html:not(.dark) button .text-slate-200,
+html:not(.dark) button .text-slate-300 {
+  color: #332421 !important;
+}
+
+/* ==========================================================================
+   Where every green is used: #2D5D4F
+   ========================================================================== */
+html:not(.dark) .text-emerald-300,
+html:not(.dark) .text-emerald-400,
+html:not(.dark) .text-emerald-500,
+html:not(.dark) .text-emerald-600,
+html:not(.dark) .text-emerald-700,
+html:not(.dark) .text-emerald-800,
+html:not(.dark) .text-emerald-900,
+html:not(.dark) .text-green-300,
+html:not(.dark) .text-green-400,
+html:not(.dark) .text-green-500,
+html:not(.dark) .text-green-600 {
+  color: #2D5D4F !important;
+}
+
+html:not(.dark) .bg-emerald-500,
+html:not(.dark) .bg-emerald-600,
+html:not(.dark) .bg-green-500,
+html:not(.dark) .bg-green-600 {
+  background-color: #2D5D4F !important;
+  color: #ffffff !important;
+}
+
+html:not(.dark) .bg-emerald-500:hover,
+html:not(.dark) .bg-emerald-600:hover {
+  background-color: #234A3E !important;
+}
+
+html:not(.dark) .bg-emerald-950\/30,
+html:not(.dark) .bg-emerald-950\/40,
+html:not(.dark) .bg-emerald-950\/50,
+html:not(.dark) .bg-emerald-950\/60,
+html:not(.dark) .bg-emerald-950\/70,
+html:not(.dark) .bg-emerald-950\/80,
+html:not(.dark) .bg-emerald-950,
+html:not(.dark) .bg-emerald-50,
+html:not(.dark) .bg-emerald-100 {
+  background-color: #E7F0EB !important;
+  border-color: #A3C6B9 !important;
+  color: #2D5D4F !important;
+}
+
+html:not(.dark) .border-emerald-800\/60,
+html:not(.dark) .border-emerald-800\/80,
+html:not(.dark) .border-emerald-800,
+html:not(.dark) .border-emerald-900\/60,
+html:not(.dark) .border-emerald-500,
+html:not(.dark) .border-emerald-400,
+html:not(.dark) .border-emerald-300,
+html:not(.dark) .border-emerald-200 {
+  border-color: #A3C6B9 !important;
+}
+
+/* ==========================================================================
+   Red remains same
+   ========================================================================== */
+html:not(.dark) .bg-rose-950\/30,
+html:not(.dark) .bg-rose-950\/40,
+html:not(.dark) .bg-rose-950\/50,
+html:not(.dark) .bg-rose-950\/60,
+html:not(.dark) .bg-rose-950\/70,
+html:not(.dark) .bg-rose-950\/80,
+html:not(.dark) .bg-rose-950\/90,
+html:not(.dark) .bg-rose-950,
+html:not(.dark) .bg-rose-50 {
+  background-color: #fff1f2 !important;
+  border-color: #fecdd3 !important;
+}
+
+html:not(.dark) .border-rose-800\/60,
+html:not(.dark) .border-rose-800\/80,
+html:not(.dark) .border-rose-800,
+html:not(.dark) .border-rose-500,
+html:not(.dark) .border-rose-300 {
+  border-color: #fecdd3 !important;
+}
+
+html:not(.dark) .text-rose-400,
+html:not(.dark) .text-rose-300,
+html:not(.dark) .text-rose-500,
+html:not(.dark) .text-rose-600,
+html:not(.dark) .text-red-400,
+html:not(.dark) .text-red-500 {
+  color: #be123c !important;
+}
+
+/* ==========================================================================
+   Remaining Colors Adjusted as per Matching Theme
+   - Primary interactive actions (sky mapped to #8E562E)
+   - Secondary info tags & pills
+   - Amber / Warning pills (warm gold amber)
+   - Purple badges
+   ========================================================================== */
+html:not(.dark) .bg-sky-500,
+html:not(.dark) button.bg-sky-500 {
+  background-color: #8E562E !important;
+  color: #ffffff !important;
+}
+
+html:not(.dark) .bg-sky-500:hover,
+html:not(.dark) button.bg-sky-500:hover,
+html:not(.dark) .hover\:bg-sky-400:hover {
+  background-color: #794723 !important;
+}
+
+html:not(.dark) .bg-sky-600,
+html:not(.dark) button.bg-sky-600 {
+  background-color: #794723 !important;
+  color: #ffffff !important;
+}
+
+html:not(.dark) .bg-sky-500\/15,
+html:not(.dark) .bg-sky-500\/20 {
+  background-color: #EFE8DC !important;
+  border-color: #D4AF37 !important;
+  color: #8E562E !important;
+}
+
+html:not(.dark) .bg-sky-950\/30,
+html:not(.dark) .bg-sky-950\/40,
+html:not(.dark) .bg-sky-950\/50,
+html:not(.dark) .bg-sky-950\/60,
+html:not(.dark) .bg-sky-950\/70,
+html:not(.dark) .bg-sky-950\/80,
+html:not(.dark) .bg-sky-950,
+html:not(.dark) .bg-sky-100 {
+  background-color: #EFE8DC !important;
+  border-color: #E2D7C7 !important;
+  color: #8E562E !important;
+}
+
+html:not(.dark) .border-sky-800\/60,
+html:not(.dark) .border-sky-800\/80,
+html:not(.dark) .border-sky-800,
+html:not(.dark) .border-sky-500\/40,
+html:not(.dark) .border-sky-500\/30,
+html:not(.dark) .border-sky-300 {
+  border-color: #E2D7C7 !important;
+}
+
+html:not(.dark) .text-sky-400,
+html:not(.dark) .text-sky-500,
+html:not(.dark) .text-sky-600 {
+  color: #8E562E !important;
+}
+
+/* Amber / Warnings */
+html:not(.dark) .bg-amber-950\/30,
+html:not(.dark) .bg-amber-950\/40,
+html:not(.dark) .bg-amber-950\/50,
+html:not(.dark) .bg-amber-950\/60,
+html:not(.dark) .bg-amber-950\/70,
+html:not(.dark) .bg-amber-950\/80,
+html:not(.dark) .bg-amber-950,
+html:not(.dark) .bg-amber-50,
+html:not(.dark) .bg-amber-100 {
+  background-color: #FDF6E2 !important;
+  border-color: #EBD28B !important;
+}
+
+html:not(.dark) .border-amber-800\/60,
+html:not(.dark) .border-amber-800\/80,
+html:not(.dark) .border-amber-800,
+html:not(.dark) .border-amber-300 {
+  border-color: #EBD28B !important;
+}
+
+html:not(.dark) .text-amber-400,
+html:not(.dark) .text-amber-500,
+html:not(.dark) .text-amber-600 {
+  color: #9E6B15 !important;
+}
+
+/* Purple / Tags */
+html:not(.dark) .bg-purple-950\/30,
+html:not(.dark) .bg-purple-950\/40,
+html:not(.dark) .bg-purple-950\/50,
+html:not(.dark) .bg-purple-950\/60,
+html:not(.dark) .bg-purple-950\/70,
+html:not(.dark) .bg-purple-950\/80,
+html:not(.dark) .bg-purple-950 {
+  background-color: #F5EEF0 !important;
+  border-color: #DAC6CD !important;
+}
+
+html:not(.dark) .border-purple-800\/60,
+html:not(.dark) .border-purple-800\/80,
+html:not(.dark) .border-purple-800 {
+  border-color: #DAC6CD !important;
+}
+
+html:not(.dark) .text-purple-400,
+html:not(.dark) .text-purple-300 {
+  color: #7A3E4D !important;
+}
+
+/* Inputs, dropdowns, and textareas */
+html:not(.dark) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+html:not(.dark) select,
+html:not(.dark) textarea {
+  background-color: #FFFFFF !important;
+  border-color: #D8CCC0 !important;
+  color: #332421 !important;
+}
+
+html:not(.dark) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+html:not(.dark) select:focus,
+html:not(.dark) textarea:focus {
+  border-color: #8E562E !important;
+  box-shadow: 0 0 0 1px #8E562E !important;
+}
+
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+  color: #8C7872 !important;
+}
+
+/* Hover treatments */
+html:not(.dark) .hover\:bg-slate-800:hover,
+html:not(.dark) .hover\:bg-slate-900:hover,
+html:not(.dark) .hover\:bg-slate-100:hover,
+html:not(.dark) .hover\:bg-slate-200:hover {
+  background-color: #EFE8DC !important;
+}
+
+html:not(.dark) .hover\:bg-slate-800\/30:hover,
+html:not(.dark) .hover\:bg-slate-800\/50:hover,
+html:not(.dark) .hover\:bg-slate-900\/40:hover {
+  background-color: #F7F2EA !important;
+}
+
+html:not(.dark) .hover\:text-slate-200:hover,
+html:not(.dark) .hover\:text-slate-900:hover,
+html:not(.dark) .hover\:text-white:hover {
+  color: #8E562E !important;
+}
+
+/* Footer */
+html:not(.dark) footer {
+  background-color: #EFE8DC !important;
+  border-color: #E2D7C7 !important;
+  color: #332421 !important;
+}
+
+/* Table headers and rows */
+html:not(.dark) table thead tr {
+  background-color: #EFE8DC !important;
+  color: #8E562E !important;
+}
+
+html:not(.dark) table tbody tr:hover {
+  background-color: #F4EFE6 !important;
+}
+
+html:not(.dark) table td {
+  border-color: #E8DEC8 !important;
+}
+
+/* Selection */
+html:not(.dark) ::selection {
+  background-color: #8E562E !important;
+  color: #ffffff !important;
+}

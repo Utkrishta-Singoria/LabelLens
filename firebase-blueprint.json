@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered officer, inspector, or citizen user profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["official", "consumer", "guest"] },
+        "governmentId": { "type": "string" },
+        "department": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Inspection": {
+      "title": "Inspection",
+      "description": "Packaging compliance inspection audit record under Legal Metrology Rules",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userRole": { "type": "string" },
+        "governmentId": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "productName": { "type": "string" },
+        "category": { "type": "string" },
+        "complianceScore": { "type": "number" },
+        "complianceStatus": { "type": "string", "enum": ["COMPLIANT", "NON_COMPLIANT", "PARTIAL_COMPLIANCE"] },
+        "enforcementAction": { "type": "string" },
+        "inspectorRemarks": { "type": "string" },
+        "isEdited": { "type": "boolean" }
+      },
+      "required": ["id", "userId", "productName", "complianceScore", "complianceStatus"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile records indexed by user ID"
+    },
+    "/inspections/{inspectionId}": {
+      "schema": "Inspection",
+      "description": "Packaging compliance inspection documents"
+    }
+  }
+}

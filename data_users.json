@@ -1,0 +1,82 @@
+[
+  {
+    "id": "id_gov_01",
+    "name": "Rajesh Sharma (Inspector)",
+    "email": "rajesh.sharma@consumeraffairs.gov.in",
+    "governmentId": "GOV-LM-2024-889",
+    "passwordHash": "officer123",
+    "role": "official",
+    "department": "Legal Metrology Enforcement Wing, New Delhi",
+    "scannedHistoryTable": "history_gov_01",
+    "createdAt": "2026-09-03T02:33:35.992Z"
+  },
+  {
+    "id": "id_user_01",
+    "name": "Anita Verma",
+    "email": "anita.verma@example.com",
+    "passwordHash": "user123",
+    "role": "consumer",
+    "scannedHistoryTable": "history_user_01",
+    "createdAt": "2026-09-03T02:33:35.992Z"
+  },
+  {
+    "id": "id_1788402835454_pcqb",
+    "name": "Sunita Rao",
+    "email": "sunita.rao@example.com",
+    "passwordHash": "newpassword999",
+    "role": "consumer",
+    "scannedHistoryTable": "history_id_1788402835454_pcqb",
+    "createdAt": "2026-09-03T02:33:55.454Z"
+  },
+  {
+    "id": "id_1788402960464_xg3q",
+    "name": "Utkrishta Singoria (Enforcement Officer)",
+    "email": "utkrishtasingoria@gmail.com",
+    "governmentId": "GOV-LM-2026-901",
+    "department": "Legal Metrology Enforcement Directorate, New Delhi",
+    "passwordHash": "12345678",
+    "role": "official",
+    "scannedHistoryTable": "history_id_1788402960464_xg3q",
+    "createdAt": "2026-09-03T02:36:00.464Z"
+  },
+  {
+    "id": "id_1788405108857_hpot",
+    "name": "Sunil Verma",
+    "email": "sunil.verma@gov.in",
+    "governmentId": "GOV-LM-2026-104",
+    "passwordHash": "password123",
+    "role": "official",
+    "department": "Metrology HQ",
+    "scannedHistoryTable": "history_id_1788405108857_hpot",
+    "createdAt": "2026-09-03T03:11:48.857Z"
+  },
+  {
+    "id": "id_1788409112578_brpp",
+    "name": "Audit Officer",
+    "email": "auditofficer101@example.com",
+    "governmentId": "DoCA-LM-2026-888",
+    "passwordHash": "mypassword123",
+    "role": "official",
+    "department": "Legal Metrology Enforcement Wing",
+    "scannedHistoryTable": "history_id_1788409112578_brpp",
+    "createdAt": "2026-09-03T04:18:32.578Z"
+  },
+  {
+    "id": "id_1788409325508_7igh",
+    "name": "utk",
+    "email": "utkrishtacrazymaster@gmail.com",
+    "passwordHash": "123456",
+    "role": "consumer",
+    "scannedHistoryTable": "history_id_1788409325508_7igh",
+    "createdAt": "2026-09-03T04:22:05.508Z"
+  },
+  {
+    "id": "id_1788409412760_1bba",
+    "name": "Geeta Singoria",
+    "email": "geetasingoria24@gmail.com",
+    "passwordHash": "password123",
+    "role": "consumer",
+    "scannedHistoryTable": "history_id_1788409412760_1bba",
+    "createdAt": "2026-09-03T04:23:32.760Z"
+  }
+]

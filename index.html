@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LabelLens - Legal Metrology Compliance System</title>
+    <meta name="description" content="LabelLens: AI-powered compliance checking and label verification system for packaged commodities under the Legal Metrology (Packaged Commodities) Rules, 2011 by the Ministry of Consumer Affairs (DoCA)." />
+    <meta property="og:title" content="LabelLens - Legal Metrology Compliance System" />
+    <meta property="og:description" content="LabelLens: AI-powered compliance checking and label verification system for packaged commodities under the Legal Metrology (Packaged Commodities) Rules, 2011 by the Ministry of Consumer Affairs (DoCA)." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          const theme = localStorage.getItem('labellens_theme') || localStorage.getItem('packcheck_theme') || 'light';
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-[#F7F2EA] text-[#332421] dark:bg-[#0A0C10] dark:text-slate-300 antialiased font-sans selection:bg-[#8E562E] selection:text-white transition-colors duration-150">
+    <div id="root" class="min-h-screen bg-[#F7F2EA] text-[#332421] dark:bg-[#0A0C10] dark:text-slate-300"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
