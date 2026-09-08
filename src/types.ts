@@ -182,6 +182,26 @@ export interface ExtractedProductData {
 
   declarationsTable: DeclarationFieldItem[];
   calibrationAnalysis?: CalibrationAnalysis;
+  nutritionAndIngredients?: NutritionAndIngredientsData;
+}
+
+export interface NutrientItem {
+  name: string;
+  amountPerServing?: string;
+  amountPer100g?: string;
+  percentDailyValue?: string; // % RDA or % DV
+}
+
+export interface NutritionAndIngredientsData {
+  isFoodOrBeverage?: boolean;
+  servingSize?: string;
+  servingsPerContainer?: string;
+  energyKcal?: string;
+  nutrients: NutrientItem[];
+  ingredientsList: string[];
+  rawIngredientsText?: string;
+  allergenDeclarations?: string[];
+  vegNonVegStatus?: 'VEG' | 'NON_VEG' | 'NOT_APPLICABLE' | 'UNKNOWN';
 }
 
 export interface InspectionReport {
@@ -203,6 +223,7 @@ export interface InspectionReport {
   extractedData: ExtractedProductData;
   violations: ComplianceViolation[];
   calibrationAnalysis?: CalibrationAnalysis;
+  nutritionAndIngredients?: NutritionAndIngredientsData;
   
   enforcementAction: 'VERIFIED_COMPLIANT' | 'NOTICE_ISSUED' | 'SEIZURE_RECOMMENDED' | 'UNDER_REVIEW' | 'WARNING_ISSUED';
   inspectorRemarks: string;

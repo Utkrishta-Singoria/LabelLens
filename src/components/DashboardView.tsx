@@ -187,14 +187,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return status !== 'COMPLIANT' && status !== 'PASS' && status !== '100% PASS';
   };
 
-  // Compute metrics
-  const totalAudits = inspections.length;
-  const compliantCount = inspections.filter(isCompliantAudit).length;
-  const violationCount = inspections.filter(isViolationAudit).length;
-  const avgCompliance = totalAudits > 0 ? Math.round(inspections.reduce((acc, i) => acc + (i.complianceScore || 0), 0) / totalAudits) : 0;
+  // Strictly isolate audits to those performed exclusively by the authenticated user
+  const userInspections = currentUser
+    ? inspections.filter((i) => i.userId === currentUser.id)
+    : [];
+
+  // Compute metrics based strictly on this user's audits
+  const totalAudits = userInspections.length;
+  const compliantCount = userInspections.filter(isCompliantAudit).length;
+  const violationCount = userInspections.filter(isViolationAudit).length;
+  const avgCompliance = totalAudits > 0 ? Math.round(userInspections.reduce((acc, i) => acc + (i.complianceScore || 0), 0) / totalAudits) : 0;
 
   // Filtered list
-  const filteredInspections = inspections.filter((item) => {
+  const filteredInspections = userInspections.filter((item) => {
     const term = searchTerm.toLowerCase();
     const matchesSearch =
       !term ||
@@ -213,9 +218,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   });
 
   const exportCSV = () => {
-    if (inspections.length === 0) return;
+    if (userInspections.length === 0) return;
     const headers = ['ID', 'Product Name', 'Category', 'Status', 'Score', 'MRP', 'Net Quantity', 'Inspector', 'Timestamp'];
-    const rows = inspections.map((i) => [
+    const rows = userInspections.map((i) => [
       i.id,
       `"${i.productName.replace(/"/g, '""')}"`,
       `"${i.category}"`,
@@ -258,7 +263,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               )}
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Secure Ledger &bull; {inspections.length} audit{inspections.length !== 1 ? 's' : ''} saved to your cloud account
+              Secure Personal Ledger &bull; {totalAudits} inspection{totalAudits !== 1 ? 's' : ''} performed by you &bull; Stored in database
             </p>
           </div>
         </div>

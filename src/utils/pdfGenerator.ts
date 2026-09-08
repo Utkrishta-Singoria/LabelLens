@@ -149,14 +149,11 @@ export async function generateInspectionPDF(report: InspectionReport): Promise<v
   // Title
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.text('GOVERNMENT OF INDIA', pageWidth / 2, y, { align: 'center' });
-  y += 4.5;
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10.5);
   doc.text('MINISTRY OF CONSUMER AFFAIRS, FOOD & PUBLIC DISTRIBUTION', pageWidth / 2, y, { align: 'center' });
-  y += 4;
-  doc.setFontSize(8);
+  y += 5;
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
   doc.text('DEPARTMENT OF CONSUMER AFFAIRS | LEGAL METROLOGY DIVISION', pageWidth / 2, y, { align: 'center' });
 
   y = 33;
@@ -385,8 +382,8 @@ export async function generateInspectionPDF(report: InspectionReport): Promise<v
 
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.text('GOVERNMENT OF INDIA - MINISTRY OF CONSUMER AFFAIRS', pageWidth / 2, p2Y, { align: 'center' });
+  doc.setFontSize(11);
+  doc.text('MINISTRY OF CONSUMER AFFAIRS, FOOD & PUBLIC DISTRIBUTION', pageWidth / 2, p2Y, { align: 'center' });
   p2Y += 4.5;
   doc.setFontSize(9.5);
   doc.setFont('helvetica', 'bold');

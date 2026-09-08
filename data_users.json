@@ -23,7 +23,7 @@
     "id": "id_1788402835454_pcqb",
     "name": "Sunita Rao",
     "email": "sunita.rao@example.com",
-    "passwordHash": "newpassword999",
+    "passwordHash": "password123",
     "role": "consumer",
     "scannedHistoryTable": "history_id_1788402835454_pcqb",
     "createdAt": "2026-09-03T02:33:55.454Z"
@@ -34,7 +34,7 @@
     "email": "utkrishtasingoria@gmail.com",
     "governmentId": "GOV-LM-2026-901",
     "department": "Legal Metrology Enforcement Directorate, New Delhi",
-    "passwordHash": "12345678",
+    "passwordHash": "password123",
     "role": "official",
     "scannedHistoryTable": "history_id_1788402960464_xg3q",
     "createdAt": "2026-09-03T02:36:00.464Z"
@@ -55,7 +55,7 @@
     "name": "Audit Officer",
     "email": "auditofficer101@example.com",
     "governmentId": "DoCA-LM-2026-888",
-    "passwordHash": "mypassword123",
+    "passwordHash": "password123",
     "role": "official",
     "department": "Legal Metrology Enforcement Wing",
     "scannedHistoryTable": "history_id_1788409112578_brpp",

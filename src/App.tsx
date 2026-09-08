@@ -8,6 +8,7 @@ import { RulesReferenceView } from './components/RulesReferenceView';
 import { AuthModal } from './components/AuthModal';
 import { SAMPLE_PRODUCTS, executeClientSideComplianceCheck } from './data/legalMetrologyRules';
 import { normalizeDeclarationsTable } from './utils/declarationTableHelper';
+import { sanitizeNutritionData } from './utils/nutritionHelper';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface ErrorBoundaryProps {
@@ -166,14 +167,15 @@ export default function App() {
       if (userCached) {
         const parsed = JSON.parse(userCached);
         if (Array.isArray(parsed)) {
-          setInspections(parsed);
+          const userOnlyCached = parsed.filter((i: any) => i.userId === currentUser.id);
+          setInspections(userOnlyCached);
         }
       }
     } catch {}
 
-    // 2. Fetch fresh user-isolated inspection history from server
+    // 2. Fetch fresh user-isolated inspection history from database API
     const token = localStorage.getItem('labellens_token') || localStorage.getItem('packcheck_token') || '';
-    fetch(`/api/inspections?userId=${encodeURIComponent(currentUser.id)}&role=${encodeURIComponent(currentUser.role)}`, {
+    fetch(`/api/inspections?userId=${encodeURIComponent(currentUser.id)}`, {
       headers: {
         'x-user-id': currentUser.id,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -185,10 +187,12 @@ export default function App() {
       })
       .then((data) => {
         if (data && data.success && Array.isArray(data.inspections)) {
-          setInspections(data.inspections);
+          // Strictly verify every record belongs to this user
+          const userOnly = data.inspections.filter((i: InspectionReport) => i.userId === currentUser.id);
+          setInspections(userOnly);
           try {
-            localStorage.setItem(`labellens_inspections_${currentUser.id}`, JSON.stringify(data.inspections));
-            localStorage.setItem(`packcheck_inspections_${currentUser.id}`, JSON.stringify(data.inspections));
+            localStorage.setItem(`labellens_inspections_${currentUser.id}`, JSON.stringify(userOnly));
+            localStorage.setItem(`packcheck_inspections_${currentUser.id}`, JSON.stringify(userOnly));
           } catch {}
         }
       })
@@ -270,6 +274,13 @@ export default function App() {
     });
 
     const calibrationAnalysis = reportData?.extractedData?.calibrationAnalysis || reportData?.calibrationAnalysis;
+    const rawNutri = reportData?.extractedData?.nutritionAndIngredients || reportData?.nutritionAndIngredients;
+    const nutritionAndIngredients = sanitizeNutritionData(
+      rawNutri,
+      reportData?.category || manualCategory,
+      reportData?.inspectorRemarks || prodName,
+      prodName
+    );
 
     return {
       id: reportId,
@@ -286,6 +297,7 @@ export default function App() {
       inspectorRemarks: reportData?.inspectorRemarks || 'Statutory declarations extracted and verified under Rule 6 of the Legal Metrology (Packaged Commodities) Rules, 2011.',
       imageUrls: (reportData?.imageUrls && reportData.imageUrls.length > 0) ? reportData.imageUrls : fallbackImages,
       calibrationAnalysis,
+      nutritionAndIngredients,
       extractedData: {
         productName: prodName,
         brandName: brand,
@@ -299,6 +311,7 @@ export default function App() {
         languageAndVisibility: lang,
         declarationsTable: declarationsTable,
         calibrationAnalysis,
+        nutritionAndIngredients,
       },
       violations: reportData?.violations || [],
       isEdited: false,
@@ -334,6 +347,12 @@ export default function App() {
       if (response.ok) {
         const rawJson = await response.json();
         const normalized = normalizeInspectionReport(rawJson, images, manualCategory);
+        if (currentUser) {
+          normalized.userId = currentUser.id;
+          normalized.userName = currentUser.name;
+          normalized.userRole = currentUser.role;
+          normalized.governmentId = currentUser.governmentId;
+        }
         setActiveReport(normalized);
         if (currentUser) {
           setInspections((prev) => {
@@ -344,6 +363,17 @@ export default function App() {
             } catch {}
             return next;
           });
+
+          // Explicitly persist to server database store
+          fetch('/api/inspections', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-user-id': currentUser.id,
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ inspection: normalized, user: currentUser }),
+          }).catch((err) => console.warn('Database save warning:', err));
         }
         setCurrentTab('scanner');
       } else {

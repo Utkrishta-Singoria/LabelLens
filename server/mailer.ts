@@ -63,7 +63,7 @@ export function getEmailLogs(filterEmail?: string): DispatchedEmailLog[] {
 }
 
 /**
- * Creates an official Government of India / DoCA styled HTML email for OTP verification
+ * Creates an official DoCA styled HTML email for OTP verification
  */
 export function buildOtpEmailHtml(params: {
   code: string;
@@ -114,10 +114,7 @@ export function buildOtpEmailHtml(params: {
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                 <tr>
                   <td>
-                    <div style="font-size: 11px; font-weight: 700; color: #E0F2FE; letter-spacing: 1.5px; text-transform: uppercase;">
-                      GOVERNMENT OF INDIA
-                    </div>
-                    <div style="font-size: 13px; font-weight: 800; color: #FFFFFF; margin-top: 2px;">
+                    <div style="font-size: 13px; font-weight: 800; color: #FFFFFF;">
                       Department of Consumer Affairs (Legal Metrology Division)
                     </div>
                   </td>
@@ -274,6 +271,39 @@ export async function sendRealtimeOtpEmail(params: {
   let status: 'DELIVERED' | 'SENT' | 'FAILED' = 'DELIVERED';
   let deliveryDetail = '';
   let isSandboxRestricted = false;
+
+  // Instant demo verification for demo domains to avoid external SMTP delays
+  const isDemoEmail =
+    cleanEmail.endsWith('@example.com') ||
+    cleanEmail.endsWith('@test.com') ||
+    cleanEmail.endsWith('@consumeraffairs.gov.in');
+
+  if (isDemoEmail) {
+    deliveryMethod = 'simulated_realtime';
+    status = 'DELIVERED';
+    deliveryDetail = 'Simulated instant delivery for demonstration account';
+    EMAIL_LOGS.unshift({
+      id: logId,
+      to: cleanEmail,
+      from: smtpFrom,
+      subject,
+      purpose,
+      timestamp: new Date().toISOString(),
+      deliveryMethod: 'simulated_realtime',
+      status: 'DELIVERED',
+      deliveryDetail,
+    });
+    if (EMAIL_LOGS.length > MAX_LOGS) EMAIL_LOGS.pop();
+
+    return {
+      success: true,
+      deliveryMethod: 'simulated_realtime',
+      isSandboxRestricted: false,
+      sandboxOtp: code,
+      message: `Demo mode: Verification passcode is ${code} (Instant test account verification).`,
+      logId,
+    };
+  }
 
   // 1. If custom SMTP is configured (e.g. Gmail SMTP, Brevo, SendGrid), prioritize direct SMTP
   const isGmail = smtpHost === 'smtp.gmail.com' || (Boolean(smtpUser) && smtpUser!.includes('@gmail.com'));

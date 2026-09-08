@@ -1,6 +1,6 @@
 import { db } from './index.ts';
 import { users, inspections } from './schema.ts';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, or } from 'drizzle-orm';
 import type { User, InspectionReport } from '../types.ts';
 import fs from 'fs';
 import path from 'path';
@@ -130,6 +130,67 @@ export async function findUserByEmail(email: string): Promise<(User & { password
   // 2. Check local database store
   const userList = readJsonSafe<any[]>(USERS_FILE, []);
   const matched = userList.find((u) => (u.email || '').toLowerCase().trim() === cleanEmail);
+  if (matched) {
+    return {
+      id: matched.id || matched.uid,
+      name: matched.name,
+      email: matched.email,
+      role: matched.role as any,
+      governmentId: matched.governmentId || undefined,
+      department: matched.department || undefined,
+      scannedHistoryTable: matched.scannedHistoryTable || undefined,
+      createdAt: matched.createdAt || undefined,
+      passwordHash: matched.passwordHash || undefined,
+    };
+  }
+
+  return null;
+}
+
+export async function findUserByIdentifier(identifier: string): Promise<(User & { passwordHash?: string }) | null> {
+  if (!identifier || typeof identifier !== 'string') return null;
+  const cleanId = identifier.trim().toLowerCase();
+  const alphaNum = cleanId.replace(/[^a-z0-9]/g, '');
+
+  // 1. Check Cloud SQL if configured
+  if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
+    try {
+      const rows = await db.select().from(users).where(
+        or(
+          eq(users.email, cleanId),
+          eq(users.uid, identifier.trim()),
+          eq(users.governmentId, identifier.trim())
+        )
+      ).limit(1);
+      if (rows.length > 0) {
+        const r = rows[0];
+        return {
+          id: r.uid,
+          name: r.name,
+          email: r.email,
+          role: r.role as any,
+          governmentId: r.governmentId || undefined,
+          department: r.department || undefined,
+          scannedHistoryTable: r.scannedHistoryTable || undefined,
+          createdAt: r.createdAt ? r.createdAt.toISOString() : undefined,
+          passwordHash: r.passwordHash || undefined,
+        };
+      }
+    } catch {}
+  }
+
+  // 2. Check local database store
+  const userList = readJsonSafe<any[]>(USERS_FILE, []);
+  const matched = userList.find((u) => {
+    const emailMatch = (u.email || '').toLowerCase().trim() === cleanId;
+    const rawGovId = (u.governmentId || '').toLowerCase().trim();
+    const govIdMatch = rawGovId === cleanId;
+    const govAlphaMatch = alphaNum.length >= 4 && rawGovId.replace(/[^a-z0-9]/g, '') === alphaNum;
+    const idMatch = (u.id || u.uid || '').toLowerCase().trim() === cleanId;
+    const nameMatch = (u.name || '').toLowerCase().trim() === cleanId;
+    return emailMatch || govIdMatch || govAlphaMatch || idMatch || nameMatch;
+  });
+
   if (matched) {
     return {
       id: matched.id || matched.uid,
@@ -307,20 +368,18 @@ function parseInspectionRow(r: any): InspectionReport {
   };
 }
 
-export async function getInspections(userId?: string, role?: string): Promise<InspectionReport[]> {
+export async function getInspections(userId?: string): Promise<InspectionReport[]> {
+  // If no user is authenticated, do not leak or return any inspection records
+  if (!userId || userId === 'guest') {
+    return [];
+  }
+
   // 1. Query Cloud SQL if configured
   if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
     try {
-      let rows;
-      if (role === 'official' && !userId) {
-        rows = await db.select().from(inspections).orderBy(desc(inspections.createdAt));
-      } else if (userId) {
-        rows = await db.select().from(inspections)
-          .where(eq(inspections.userId, userId))
-          .orderBy(desc(inspections.createdAt));
-      } else {
-        rows = await db.select().from(inspections).orderBy(desc(inspections.createdAt)).limit(100);
-      }
+      const rows = await db.select().from(inspections)
+        .where(eq(inspections.userId, userId))
+        .orderBy(desc(inspections.createdAt));
       if (rows && rows.length > 0) {
         return rows.map(parseInspectionRow);
       }
@@ -329,15 +388,7 @@ export async function getInspections(userId?: string, role?: string): Promise<In
 
   // 2. Query local persistent database store
   const inspectionList = readJsonSafe<InspectionReport[]>(INSPECTIONS_FILE, []);
-  let list: InspectionReport[] = [];
-  if (role === 'official' && !userId) {
-    list = [...inspectionList];
-  } else if (userId) {
-    list = inspectionList.filter((i) => i.userId === userId);
-  } else {
-    list = [...inspectionList];
-  }
-
+  const list = inspectionList.filter((i) => i.userId === userId);
   list.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
   return list;
 }
@@ -418,24 +469,23 @@ export async function upsertInspection(report: InspectionReport): Promise<Inspec
 }
 
 export async function deleteInspection(id: string, userId?: string, role?: string): Promise<boolean> {
-  // 1. Delete in local persistent database store
+  // 1. Delete in local persistent database store strictly checking ownership
   const inspectionList = readJsonSafe<InspectionReport[]>(INSPECTIONS_FILE, []);
   const updatedList = inspectionList.filter((ins) => {
     if (ins.id !== id) return true;
-    if (role === 'official') return false;
+    // Only allow deletion if the record belongs to this user or if an authorized officer
     if (userId && ins.userId === userId) return false;
-    return false;
+    if (role === 'official' && !userId) return false;
+    return true;
   });
   writeJsonSafe(INSPECTIONS_FILE, updatedList);
 
   // 2. Delete in Cloud SQL if configured
   if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
     try {
-      if (role === 'official') {
-        await db.delete(inspections).where(eq(inspections.id, id));
-      } else if (userId) {
+      if (userId) {
         await db.delete(inspections).where(and(eq(inspections.id, id), eq(inspections.userId, userId)));
-      } else {
+      } else if (role === 'official') {
         await db.delete(inspections).where(eq(inspections.id, id));
       }
     } catch {}
@@ -456,8 +506,28 @@ export async function updateInspection(id: string, updates: Partial<InspectionRe
   const existingIdx = inspectionList.findIndex((i) => i.id === id);
   if (existingIdx >= 0) {
     inspectionList[existingIdx] = { ...inspectionList[existingIdx], ...updatedData };
-    writeJsonSafe(INSPECTIONS_FILE, inspectionList);
+  } else {
+    // If not found in store yet, register as new inspection
+    const newReport: InspectionReport = {
+      id,
+      timestamp: new Date().toISOString(),
+      userId: updates.userId || 'guest',
+      userName: updates.userName || 'Auditor',
+      userRole: updates.userRole || 'consumer',
+      productName: updates.productName || 'Inspected Commodity',
+      category: updates.category || 'General Packaged Commodity',
+      complianceScore: updates.complianceScore ?? 85,
+      complianceStatus: updates.complianceStatus || 'COMPLIANT',
+      enforcementAction: updates.enforcementAction || 'VERIFIED_COMPLIANT',
+      inspectorRemarks: updates.inspectorRemarks || '',
+      imageUrls: updates.imageUrls || [],
+      extractedData: updates.extractedData || ({} as any),
+      violations: updates.violations || [],
+      ...updatedData,
+    };
+    inspectionList.unshift(newReport);
   }
+  writeJsonSafe(INSPECTIONS_FILE, inspectionList);
 
   // 2. Update in Cloud SQL if configured
   if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {

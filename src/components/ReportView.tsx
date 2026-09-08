@@ -3,6 +3,7 @@ import {
   InspectionReport,
   ComplianceViolation,
   DeclarationFieldItem,
+  NutritionAndIngredientsData,
 } from '../types';
 import {
   CheckCircle2,
@@ -48,6 +49,7 @@ import {
 } from 'lucide-react';
 import { generateInspectionPDF } from '../utils/pdfGenerator';
 import { normalizeDeclarationsTable } from '../utils/declarationTableHelper';
+import { NutritionIngredientsSection } from './NutritionIngredientsSection';
 
 interface ReportViewProps {
   report: InspectionReport;
@@ -129,12 +131,15 @@ export const ReportView: React.FC<ReportViewProps> = ({
   };
 
   const handleSaveEdits = () => {
+    const nutri = editedReport.nutritionAndIngredients || editedReport.extractedData?.nutritionAndIngredients;
     const updated: InspectionReport = {
       ...editedReport,
       isEdited: true,
+      nutritionAndIngredients: nutri,
       extractedData: {
         ...editedReport.extractedData,
         declarationsTable: declarations,
+        nutritionAndIngredients: nutri,
       },
     };
     setEditedReport(updated);
@@ -168,7 +173,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
       : new Date().toLocaleString('en-IN');
 
     return `To:
-National Consumer Helpline (NCH), Department of Consumer Affairs, Government of India
+National Consumer Helpline (NCH), Department of Consumer Affairs
 Email: nch-ca@gov.in | Toll-Free Helpline: 1915 | Web Portal: consumerhelpline.gov.in
 CC: Food Safety and Standards Authority of India (compliance@fssai.gov.in)
 
@@ -347,6 +352,28 @@ FSSAI Consumer Grievance: compliance@fssai.gov.in`;
       editedReport.extractedData
     );
   }, [editedReport.extractedData]);
+
+  const nutritionData = useMemo(() => {
+    return (
+      editedReport.nutritionAndIngredients ||
+      editedReport.extractedData?.nutritionAndIngredients
+    );
+  }, [editedReport.nutritionAndIngredients, editedReport.extractedData?.nutritionAndIngredients]);
+
+  const handleNutritionChange = (updated: NutritionAndIngredientsData) => {
+    const nextReport: InspectionReport = {
+      ...editedReport,
+      isEdited: true,
+      nutritionAndIngredients: updated,
+      extractedData: {
+        ...editedReport.extractedData,
+        nutritionAndIngredients: updated,
+      },
+    };
+    setEditedReport(nextReport);
+    onUpdateReport(nextReport);
+  };
+
   const violationsList = editedReport.violations || [];
   const imageProofs = editedReport.imageUrls || [];
 
@@ -1097,7 +1124,7 @@ FSSAI Consumer Grievance: compliance@fssai.gov.in`;
             </div>
 
             <p className="text-xs text-slate-400 font-sans leading-relaxed">
-              Statutory infractions detected under the Legal Metrology (Packaged Commodities) Rules, 2011 are liable for regulatory inquiry and compounding under Section 36 of the Legal Metrology Act, 2009. You can report this violation directly to the Government of India with attached evidentiary proof.
+              Statutory infractions detected under the Legal Metrology (Packaged Commodities) Rules, 2011 are liable for regulatory inquiry and compounding under Section 36 of the Legal Metrology Act, 2009. You can report this violation directly to the Department of Consumer Affairs with attached evidentiary proof.
             </p>
 
             {/* Single-Click Action Button */}
@@ -1325,6 +1352,15 @@ FSSAI Consumer Grievance: compliance@fssai.gov.in`;
           </table>
         </div>
       </div>
+
+      {/* NUTRIENTS & INGREDIENTS STATUTORY AUDIT BREAKDOWN */}
+      <NutritionIngredientsSection
+        nutritionData={nutritionData}
+        isEditing={isEditing}
+        onChange={handleNutritionChange}
+        productName={editedReport.productName}
+        category={editedReport.category}
+      />
 
       {/* FORENSIC LIGHTBOX MODAL FOR IMAGE PROOF */}
       {activeProofIndex !== null && imageProofs[activeProofIndex] && (

@@ -1,4 +1,5 @@
 import { StandardSizeRule, MPERule, InspectionReport, ComplianceViolation } from '../types';
+import { getNutritionAndIngredientsFallback } from '../utils/nutritionHelper';
 
 export const STANDARD_PACK_RULES: StandardSizeRule[] = [
   {
@@ -718,6 +719,8 @@ export function executeClientSideComplianceCheck(
   // Category-tailored standard net quantity values
   const defaultQuantityStr = isOil ? '1 L' : isBiscuits ? '200 g' : isSoap ? '125 g' : 'Standard Metric Unit';
 
+  const nutritionAndIngredients = getNutritionAndIngredientsFallback(chosenCat, inspectorNotes, itemTitle);
+
   return {
     id: reportId,
     timestamp: new Date().toISOString(),
@@ -732,12 +735,14 @@ export function executeClientSideComplianceCheck(
     inspectorRemarks: inspectorNotes || `Statutory declarations audited under Rule 6 and Schedule II of Legal Metrology (Packaged Commodities) Rules, 2011 for ${chosenCat}.`,
     imageUrls: images,
     calibrationAnalysis: calibAnalysis,
+    nutritionAndIngredients,
     extractedData: {
       productName: itemTitle,
       brandName: 'Detected on Package',
       genericCommodityName: chosenCat,
       category: chosenCat as any,
       calibrationAnalysis: calibAnalysis,
+      nutritionAndIngredients,
       manufacturerDetails: {
         name: 'Declared on Statutory Panel',
         address: 'Verified under Rule 6(1)(a)',
