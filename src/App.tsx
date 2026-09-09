@@ -577,6 +577,8 @@ export default function App() {
             <span>DoCA Legal Metrology Enforcement Portal</span>
             <span>&bull;</span>
             <span className="text-[#8E562E] dark:text-sky-400 font-semibold">Problem Statement ID: 26034</span>
+            <span>&bull;</span>
+            <span className="font-bold text-[#8E562E] dark:text-sky-400 tracking-wide">BUILD BY TEAM STRAW HATS</span>
           </div>
           <div className="flex items-center gap-4">
             <span>Act Penalty Code: Sec 36(1)</span>

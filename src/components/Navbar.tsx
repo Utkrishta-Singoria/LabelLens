@@ -1,6 +1,6 @@
 import React from 'react';
 import { User } from '../types';
-import { ShieldCheck, Scale, LayoutDashboard, LogIn, LogOut, BookOpen, Activity, Terminal, ShieldAlert, Lock, Database, Sun, Moon } from 'lucide-react';
+import { ShieldCheck, Scale, LayoutDashboard, LogIn, LogOut, BookOpen, Activity, Terminal, ShieldAlert, Lock, Sun, Moon } from 'lucide-react';
 
 interface NavbarProps {
   currentUser: User | null;
@@ -61,10 +61,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* System Telemetry - Positioned right on desktop */}
           <div className="hidden lg:flex items-center gap-3 absolute right-0 text-[11px]">
-            <span className="text-[#332421] dark:text-slate-400 flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-[#E2D7C7] dark:border-slate-800 px-2.5 py-1 rounded-md shadow-2xs">
-              <Database className="w-3 h-3 text-[#8E562E] dark:text-sky-500" />
-              <span>Firestore Cloud DB</span>
-            </span>
             <span className="text-[#2D5D4F] dark:text-emerald-400 flex items-center gap-1 font-medium bg-[#E7F0EB] dark:bg-emerald-950/40 border border-[#A3C6B9] dark:border-emerald-800/50 px-2.5 py-1 rounded-md">
               <Activity className="w-3 h-3" />
               <span>System Online</span>
