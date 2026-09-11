@@ -23,6 +23,7 @@ import {
   PlusCircle,
   FileImage,
   Loader2,
+  Target,
 } from 'lucide-react';
 import { generateInspectionPDF } from '../utils/pdfGenerator';
 
@@ -198,6 +199,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const violationCount = userInspections.filter(isViolationAudit).length;
   const avgCompliance = totalAudits > 0 ? Math.round(userInspections.reduce((acc, i) => acc + (i.complianceScore || 0), 0) / totalAudits) : 0;
 
+  // Track edited reports vs total reports for AI accuracy ratio
+  const isEditedReport = (item: InspectionReport): boolean => {
+    return Boolean(
+      item.isEdited ||
+      (item as any).is_edited ||
+      item.lastEditedAt ||
+      (item as any).last_edited_at ||
+      item.extractedData?.declarationsTable?.some((d) => d.isUserEdited)
+    );
+  };
+
+  const editedCount = userInspections.filter(isEditedReport).length;
+  const uneditedCount = Math.max(0, totalAudits - editedCount);
+  const editRatioPercent = totalAudits > 0 ? Math.round((editedCount / totalAudits) * 100) : 0;
+  const accuracyPercent = totalAudits > 0 ? Math.round((uneditedCount / totalAudits) * 100) : 100;
+
   // Filtered list
   const filteredInspections = userInspections.filter((item) => {
     const term = searchTerm.toLowerCase();
@@ -342,6 +359,126 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="text-3xl font-bold text-sky-400 mt-2 font-sans">{avgCompliance}%</div>
           <div className="h-1.5 bg-slate-800 w-full rounded-full mt-3 overflow-hidden">
             <div className="h-full bg-sky-500" style={{ width: `${avgCompliance}%` }}></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Accuracy Section: Edited Reports / Total Reports Ratio */}
+      <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-sm space-y-4 backdrop-blur-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-400 flex items-center justify-center shrink-0">
+              <Target className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-bold text-slate-200">
+                  Report Generation Accuracy
+                </h3>
+                <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-full font-mono">
+                  {totalAudits > 0 ? `${accuracyPercent}% First-Pass Accuracy` : 'Model Baseline'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Evaluation of automated inspection precision based on post-generation manual edits
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="bg-slate-950/70 border border-slate-800 px-3.5 py-1.5 rounded-lg">
+              <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+                Edited / Total Ratio
+              </div>
+              <div className="text-base sm:text-lg font-bold font-mono text-sky-400">
+                {editedCount} / {totalAudits}{' '}
+                <span className="text-xs font-normal text-slate-400 font-sans">
+                  ({editRatioPercent}%)
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3 Metric Cards for Accuracy */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-400">Edited Reports</span>
+              <span className="text-[10px] font-semibold text-amber-400 bg-amber-950/60 border border-amber-800/60 px-2 py-0.5 rounded-full font-mono">
+                Manual Edit
+              </span>
+            </div>
+            <div className="text-2xl font-bold text-amber-400 mt-2 font-mono">
+              {editedCount}{' '}
+              <span className="text-xs text-slate-400 font-normal font-sans">
+                / {totalAudits} reports
+              </span>
+            </div>
+            <div className="text-[10px] text-slate-500 mt-1">
+              {editRatioPercent}% required post-scan corrections
+            </div>
+          </div>
+
+          <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-400">Unedited Reports</span>
+              <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-full font-mono">
+                Direct Pass
+              </span>
+            </div>
+            <div className="text-2xl font-bold text-emerald-400 mt-2 font-mono">
+              {uneditedCount}{' '}
+              <span className="text-xs text-slate-400 font-normal font-sans">
+                / {totalAudits} reports
+              </span>
+            </div>
+            <div className="text-[10px] text-slate-500 mt-1">
+              Accepted directly without manual edit
+            </div>
+          </div>
+
+          <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-400">Generation Accuracy</span>
+              <span className="text-[10px] font-semibold text-sky-400 bg-sky-950/60 border border-sky-800/60 px-2 py-0.5 rounded-full font-mono">
+                Precision
+              </span>
+            </div>
+            <div className="text-2xl font-bold text-white mt-2 font-mono">
+              {totalAudits > 0 ? `${accuracyPercent}%` : 'N/A'}
+            </div>
+            <div className="text-[10px] text-slate-500 mt-1">
+              Ratio: {editedCount} edited / {totalAudits} total
+            </div>
+          </div>
+        </div>
+
+        {/* Accuracy Progress Distribution Bar */}
+        <div className="space-y-1.5 pt-0.5">
+          <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>Unedited (Accurate): <strong className="text-slate-200">{uneditedCount}</strong></span>
+              <span className="text-slate-600">&bull;</span>
+              <span className="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
+              <span>Edited: <strong className="text-slate-200">{editedCount}</strong></span>
+            </span>
+            <span className="font-semibold text-slate-300">
+              Ratio: {editedCount}/{totalAudits} ({editRatioPercent}%)
+            </span>
+          </div>
+          <div className="h-2 bg-slate-800 w-full rounded-full overflow-hidden flex">
+            <div
+              className="h-full bg-emerald-500 transition-all duration-300"
+              style={{ width: `${totalAudits > 0 ? (uneditedCount / totalAudits) * 100 : 100}%` }}
+              title={`Unedited: ${uneditedCount} (${accuracyPercent}%)`}
+            />
+            <div
+              className="h-full bg-amber-500 transition-all duration-300"
+              style={{ width: `${totalAudits > 0 ? (editedCount / totalAudits) * 100 : 0}%` }}
+              title={`Edited: ${editedCount} (${editRatioPercent}%)`}
+            />
           </div>
         </div>
       </div>
