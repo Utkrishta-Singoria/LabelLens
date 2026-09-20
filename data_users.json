@@ -4,7 +4,7 @@
     "name": "Rajesh Sharma (Inspector)",
     "email": "rajesh.sharma@consumeraffairs.gov.in",
     "governmentId": "GOV-LM-2024-889",
-    "passwordHash": "officer123",
+    "passwordHash": "123456",
     "role": "official",
     "department": "Legal Metrology Enforcement Wing, New Delhi",
     "scannedHistoryTable": "history_gov_01",
@@ -34,7 +34,7 @@
     "email": "utkrishtasingoria@gmail.com",
     "governmentId": "GOV-LM-2026-901",
     "department": "Legal Metrology Enforcement Directorate, New Delhi",
-    "passwordHash": "password123",
+    "passwordHash": "123456",
     "role": "official",
     "scannedHistoryTable": "history_id_1788402960464_xg3q",
     "createdAt": "2026-09-03T02:36:00.464Z"
@@ -74,9 +74,40 @@
     "id": "id_1788409412760_1bba",
     "name": "Geeta Singoria",
     "email": "geetasingoria24@gmail.com",
-    "passwordHash": "password123",
+    "passwordHash": "123456",
     "role": "consumer",
     "scannedHistoryTable": "history_id_1788409412760_1bba",
     "createdAt": "2026-09-03T04:23:32.760Z"
+  },
+  {
+    "id": "id_1789910082681_oh0m",
+    "name": "muskan yadav",
+    "email": "ymuskan@gmail.com",
+    "role": "official",
+    "governmentId": "DoCA-LM-2026-1550",
+    "department": "Legal Metrology Enforcement Wing",
+    "scannedHistoryTable": "history_id_1789910082681_oh0m",
+    "createdAt": "2026-09-20T13:14:42.682Z",
+    "passwordHash": "123456"
+  },
+  {
+    "id": "id_1789910185238_w0kf",
+    "name": "muskan yadav",
+    "email": "ymuskan252@gmail.com",
+    "role": "consumer",
+    "scannedHistoryTable": "history_id_1789910185238_w0kf",
+    "createdAt": "2026-09-20T13:16:25.238Z",
+    "passwordHash": "123456"
+  },
+  {
+    "id": "Bf00oilEgMRpNy8SmQcAZ8FX3j82",
+    "name": "Utkrishta Singoria (Enforcement Officer)",
+    "email": "utkrishtasingoria@gmail.com",
+    "governmentId": "GOV-LM-2026-901",
+    "department": "Legal Metrology Enforcement Directorate, New Delhi",
+    "role": "official",
+    "passwordHash": "123456",
+    "scannedHistoryTable": "history_id_1788402960464_xg3q",
+    "createdAt": "2026-09-03T02:36:00.464Z"
   }
 ]

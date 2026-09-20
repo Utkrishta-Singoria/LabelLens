@@ -12,9 +12,11 @@
         "role": { "type": "string", "enum": ["official", "consumer", "guest"] },
         "governmentId": { "type": "string" },
         "department": { "type": "string" },
+        "passwordHash": { "type": "string" },
+        "scannedHistoryTable": { "type": "string" },
         "createdAt": { "type": "string" }
       },
-      "required": ["uid", "name", "email", "role"]
+      "required": ["id", "name", "email", "role"]
     },
     "Inspection": {
       "title": "Inspection",
@@ -33,7 +35,9 @@
         "complianceStatus": { "type": "string", "enum": ["COMPLIANT", "NON_COMPLIANT", "PARTIAL_COMPLIANCE"] },
         "enforcementAction": { "type": "string" },
         "inspectorRemarks": { "type": "string" },
-        "isEdited": { "type": "boolean" }
+        "isEdited": { "type": "boolean" },
+        "lastEditedAt": { "type": "string" },
+        "barcodeNumber": { "type": "string" }
       },
       "required": ["id", "userId", "productName", "complianceScore", "complianceStatus"]
     }
@@ -49,3 +53,4 @@
     }
   }
 }
+

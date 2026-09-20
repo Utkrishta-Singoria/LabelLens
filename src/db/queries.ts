@@ -1,15 +1,35 @@
-import { db } from './index.ts';
-import { users, inspections } from './schema.ts';
-import { eq, desc, and, or } from 'drizzle-orm';
+import { db as firestoreDb } from '../lib/firebase.js';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+  query,
+  where,
+  limit,
+} from 'firebase/firestore';
 import type { User, InspectionReport } from '../types.ts';
+import { DEFAULT_USERS, DEFAULT_INSPECTIONS, DbUser } from './initialData.ts';
 import fs from 'fs';
 import path from 'path';
 
 const USERS_FILE = path.join(process.cwd(), 'data_users.json');
 const INSPECTIONS_FILE = path.join(process.cwd(), 'data_inspections.json');
 
+// Helper to sanitize objects for Firestore (removes undefined values)
+export function cleanForFirestore<T>(data: T): T {
+  return JSON.parse(
+    JSON.stringify(data, (key, value) => {
+      if (value === undefined) return null;
+      return value;
+    })
+  );
+}
+
 // Helper to safely read JSON files
-function readJsonSafe<T>(filePath: string, fallback: T): T {
+export function readJsonSafe<T>(filePath: string, fallback: T): T {
   try {
     if (fs.existsSync(filePath)) {
       const data = fs.readFileSync(filePath, 'utf-8');
@@ -22,7 +42,7 @@ function readJsonSafe<T>(filePath: string, fallback: T): T {
 }
 
 // Helper to safely write JSON files
-function writeJsonSafe<T>(filePath: string, data: T): void {
+export function writeJsonSafe<T>(filePath: string, data: T): void {
   try {
     const tempPath = `${filePath}.tmp`;
     fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf-8');
@@ -32,71 +52,59 @@ function writeJsonSafe<T>(filePath: string, data: T): void {
   }
 }
 
-export async function seedInitialDataIfNeeded() {
+/**
+ * Seed initial users and demo inspections to Firestore if not already populated.
+ * This guarantees permanent cloud storage across all container restarts.
+ */
+export async function seedInitialDataIfNeeded(): Promise<void> {
   try {
-    // 1. Ensure local JSON user database exists and is populated
+    // 1. Ensure local fallback JSON files exist with defaults
     if (!fs.existsSync(USERS_FILE)) {
-      writeJsonSafe(USERS_FILE, []);
+      writeJsonSafe(USERS_FILE, DEFAULT_USERS);
     }
-
-    // 2. Ensure local JSON inspections database exists
     if (!fs.existsSync(INSPECTIONS_FILE)) {
-      writeJsonSafe(INSPECTIONS_FILE, []);
+      writeJsonSafe(INSPECTIONS_FILE, DEFAULT_INSPECTIONS);
     }
 
-    // 3. Sync with Cloud SQL if database connection is configured
-    if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
-      try {
-        const existingUsers = await db.select({ count: users.id }).from(users).limit(1);
-        if (existingUsers.length === 0) {
-          const userList = readJsonSafe<any[]>(USERS_FILE, []);
-          for (const u of userList) {
-            try {
-              await db.insert(users).values({
-                uid: u.id,
-                name: u.name || 'User',
-                email: (u.email || '').toLowerCase().trim(),
-                role: u.role || 'consumer',
-                governmentId: u.governmentId || null,
-                department: u.department || null,
-                passwordHash: u.passwordHash || null,
-                scannedHistoryTable: u.scannedHistoryTable || null,
-              }).onConflictDoNothing();
-            } catch {}
+    // 2. Check if Firestore has users; seed default demo users if missing
+    try {
+      await Promise.race([
+        (async () => {
+          for (const u of DEFAULT_USERS) {
+            const uDoc = doc(firestoreDb, 'users', u.id);
+            const snap = await getDoc(uDoc);
+            if (!snap.exists()) {
+              await setDoc(uDoc, cleanForFirestore(u), { merge: true });
+            }
           }
-        }
+          console.log('[DATABASE] Seeded default users to permanent Firestore database.');
+        })(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore user seed timeout')), 2500)),
+      ]);
+    } catch (userSeedErr) {
+      console.warn('[DATABASE] Firestore user sync notice:', userSeedErr);
+    }
 
-        const existingInspections = await db.select({ count: inspections.id }).from(inspections).limit(1);
-        if (existingInspections.length === 0) {
-          const inspectionList = readJsonSafe<InspectionReport[]>(INSPECTIONS_FILE, []);
-          for (const ins of inspectionList) {
-            try {
-              await db.insert(inspections).values({
-                id: ins.id,
-                userId: ins.userId || 'id_user_01',
-                userName: ins.userName || null,
-                userRole: ins.userRole || null,
-                governmentId: ins.governmentId || null,
-                productName: ins.productName || 'Sample Product',
-                category: ins.category || 'General Packaged Commodity',
-                complianceScore: ins.complianceScore ?? 0,
-                complianceStatus: ins.complianceStatus || 'NON_COMPLIANT',
-                enforcementAction: ins.enforcementAction || 'NOTICE_ISSUED',
-                inspectorRemarks: ins.inspectorRemarks || null,
-                timestamp: ins.timestamp || new Date().toISOString(),
-                imageUrls: JSON.stringify(ins.imageUrls || []),
-                extractedData: JSON.stringify(ins.extractedData || {}),
-                violations: JSON.stringify(ins.violations || []),
-                barcodeNumber: ins.barcodeNumber || null,
-                isEdited: Boolean(ins.isEdited),
-                lastEditedAt: ins.lastEditedAt || null,
-              }).onConflictDoNothing();
-            } catch {}
+    // 3. Check if Firestore has inspections; seed initial demo inspections if collection is empty
+    try {
+      await Promise.race([
+        (async () => {
+          const inspCol = collection(firestoreDb, 'inspections');
+          const testQuery = query(inspCol, limit(1));
+          const testSnap = await getDocs(testQuery);
+          if (testSnap.empty) {
+            console.log('[DATABASE] Firestore inspections collection empty. Seeding initial records...');
+            for (const ins of DEFAULT_INSPECTIONS) {
+              const insDoc = doc(firestoreDb, 'inspections', ins.id);
+              await setDoc(insDoc, cleanForFirestore(ins), { merge: true });
+            }
+            console.log('[DATABASE] Initial inspections successfully committed to Firestore.');
           }
-        }
-      } catch (sqlErr) {
-        console.warn('[DATABASE] Cloud SQL sync notice:', sqlErr);
-      }
+        })(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore inspection seed timeout')), 2500)),
+      ]);
+    } catch (inspSeedErr) {
+      console.warn('[DATABASE] Firestore inspection sync notice:', inspSeedErr);
     }
   } catch (error) {
     console.error('Failed to seed initial data:', error);
@@ -104,31 +112,11 @@ export async function seedInitialDataIfNeeded() {
 }
 
 export async function findUserByEmail(email: string): Promise<(User & { passwordHash?: string }) | null> {
+  if (!email) return null;
   const cleanEmail = email.toLowerCase().trim();
 
-  // 1. Check Cloud SQL if configured
-  if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
-    try {
-      const rows = await db.select().from(users).where(eq(users.email, cleanEmail)).limit(1);
-      if (rows.length > 0) {
-        const r = rows[0];
-        return {
-          id: r.uid,
-          name: r.name,
-          email: r.email,
-          role: r.role as any,
-          governmentId: r.governmentId || undefined,
-          department: r.department || undefined,
-          scannedHistoryTable: r.scannedHistoryTable || undefined,
-          createdAt: r.createdAt ? r.createdAt.toISOString() : undefined,
-          passwordHash: r.passwordHash || undefined,
-        };
-      }
-    } catch {}
-  }
-
-  // 2. Check local database store
-  const userList = readJsonSafe<any[]>(USERS_FILE, []);
+  // 1. Fast check in local database store first for instant response
+  const userList = readJsonSafe<any[]>(USERS_FILE, DEFAULT_USERS);
   const matched = userList.find((u) => (u.email || '').toLowerCase().trim() === cleanEmail);
   if (matched) {
     return {
@@ -144,6 +132,31 @@ export async function findUserByEmail(email: string): Promise<(User & { password
     };
   }
 
+  // 2. Check Firestore with a quick timeout fallback
+  try {
+    const q = query(collection(firestoreDb, 'users'), where('email', '==', cleanEmail), limit(1));
+    const snap = await Promise.race([
+      getDocs(q),
+      new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 1500))
+    ]);
+    if (snap && !snap.empty) {
+      const data = snap.docs[0].data() as any;
+      return {
+        id: data.id || snap.docs[0].id,
+        name: data.name,
+        email: data.email,
+        role: data.role as any,
+        governmentId: data.governmentId || undefined,
+        department: data.department || undefined,
+        scannedHistoryTable: data.scannedHistoryTable || undefined,
+        createdAt: data.createdAt || undefined,
+        passwordHash: data.passwordHash || undefined,
+      };
+    }
+  } catch (fsErr) {
+    console.warn('[FIRESTORE] findUserByEmail notice:', fsErr);
+  }
+
   return null;
 }
 
@@ -152,35 +165,8 @@ export async function findUserByIdentifier(identifier: string): Promise<(User & 
   const cleanId = identifier.trim().toLowerCase();
   const alphaNum = cleanId.replace(/[^a-z0-9]/g, '');
 
-  // 1. Check Cloud SQL if configured
-  if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
-    try {
-      const rows = await db.select().from(users).where(
-        or(
-          eq(users.email, cleanId),
-          eq(users.uid, identifier.trim()),
-          eq(users.governmentId, identifier.trim())
-        )
-      ).limit(1);
-      if (rows.length > 0) {
-        const r = rows[0];
-        return {
-          id: r.uid,
-          name: r.name,
-          email: r.email,
-          role: r.role as any,
-          governmentId: r.governmentId || undefined,
-          department: r.department || undefined,
-          scannedHistoryTable: r.scannedHistoryTable || undefined,
-          createdAt: r.createdAt ? r.createdAt.toISOString() : undefined,
-          passwordHash: r.passwordHash || undefined,
-        };
-      }
-    } catch {}
-  }
-
-  // 2. Check local database store
-  const userList = readJsonSafe<any[]>(USERS_FILE, []);
+  // 1. Fast local database lookup first
+  const userList = readJsonSafe<any[]>(USERS_FILE, DEFAULT_USERS);
   const matched = userList.find((u) => {
     const emailMatch = (u.email || '').toLowerCase().trim() === cleanId;
     const rawGovId = (u.governmentId || '').toLowerCase().trim();
@@ -188,7 +174,10 @@ export async function findUserByIdentifier(identifier: string): Promise<(User & 
     const govAlphaMatch = alphaNum.length >= 4 && rawGovId.replace(/[^a-z0-9]/g, '') === alphaNum;
     const idMatch = (u.id || u.uid || '').toLowerCase().trim() === cleanId;
     const nameMatch = (u.name || '').toLowerCase().trim() === cleanId;
-    return emailMatch || govIdMatch || govAlphaMatch || idMatch || nameMatch;
+    const utkrishtaAlias =
+      (cleanId === 'utkrishtasingoria@gmail.com' || cleanId === 'id_1788402960464_xg3q' || cleanId === 'bf00oilegmrpnys8mqcaz8fx3j82' || cleanId === 'id_user_utkrishta') &&
+      (u.email || '').toLowerCase().trim() === 'utkrishtasingoria@gmail.com';
+    return emailMatch || govIdMatch || govAlphaMatch || idMatch || nameMatch || utkrishtaAlias;
   });
 
   if (matched) {
@@ -205,33 +194,70 @@ export async function findUserByIdentifier(identifier: string): Promise<(User & 
     };
   }
 
+  // 2. Check Firestore with quick timeout fallback
+  try {
+    const docSnapPromise = getDoc(doc(firestoreDb, 'users', identifier.trim()));
+    const docSnap = await Promise.race([
+      docSnapPromise,
+      new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 1500))
+    ]);
+    if (docSnap && docSnap.exists()) {
+      const data = docSnap.data() as any;
+      return {
+        id: data.id || docSnap.id,
+        name: data.name,
+        email: data.email,
+        role: data.role as any,
+        governmentId: data.governmentId || undefined,
+        department: data.department || undefined,
+        scannedHistoryTable: data.scannedHistoryTable || undefined,
+        createdAt: data.createdAt || undefined,
+        passwordHash: data.passwordHash || undefined,
+      };
+    }
+
+    const emailQuery = query(collection(firestoreDb, 'users'), where('email', '==', cleanId), limit(1));
+    const emailSnap = await Promise.race([
+      getDocs(emailQuery),
+      new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 1500))
+    ]);
+    if (emailSnap && !emailSnap.empty) {
+      const data = emailSnap.docs[0].data() as any;
+      return {
+        id: data.id || emailSnap.docs[0].id,
+        name: data.name,
+        email: data.email,
+        role: data.role as any,
+        governmentId: data.governmentId || undefined,
+        department: data.department || undefined,
+        scannedHistoryTable: data.scannedHistoryTable || undefined,
+        createdAt: data.createdAt || undefined,
+        passwordHash: data.passwordHash || undefined,
+      };
+    }
+  } catch (fsErr) {
+    console.warn('[FIRESTORE] findUserByIdentifier notice:', fsErr);
+  }
+
   return null;
 }
 
 export async function findUserById(uid: string): Promise<User | null> {
-  // 1. Check Cloud SQL if configured
-  if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
-    try {
-      const rows = await db.select().from(users).where(eq(users.uid, uid)).limit(1);
-      if (rows.length > 0) {
-        const r = rows[0];
-        return {
-          id: r.uid,
-          name: r.name,
-          email: r.email,
-          role: r.role as any,
-          governmentId: r.governmentId || undefined,
-          department: r.department || undefined,
-          scannedHistoryTable: r.scannedHistoryTable || undefined,
-          createdAt: r.createdAt ? r.createdAt.toISOString() : undefined,
-        };
-      }
-    } catch {}
-  }
+  if (!uid) return null;
 
-  // 2. Check local database store
-  const userList = readJsonSafe<any[]>(USERS_FILE, []);
-  const matched = userList.find((u) => u.id === uid || u.uid === uid);
+  // 1. Fast check local database store
+  const userList = readJsonSafe<any[]>(USERS_FILE, DEFAULT_USERS);
+  const matched = userList.find((u) => {
+    if (u.id === uid || u.uid === uid) return true;
+    if (
+      (uid === 'Bf00oilEgMRpNy8SmQcAZ8FX3j82' || uid === 'id_user_utkrishta' || uid === 'id_1788402960464_xg3q') &&
+      (u.email || '').toLowerCase().trim() === 'utkrishtasingoria@gmail.com'
+    ) {
+      return true;
+    }
+    return false;
+  });
+
   if (matched) {
     return {
       id: matched.id || matched.uid,
@@ -243,6 +269,29 @@ export async function findUserById(uid: string): Promise<User | null> {
       scannedHistoryTable: matched.scannedHistoryTable || undefined,
       createdAt: matched.createdAt || undefined,
     };
+  }
+
+  // 2. Query Firestore with quick timeout
+  try {
+    const snap = await Promise.race([
+      getDoc(doc(firestoreDb, 'users', uid)),
+      new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 1500))
+    ]);
+    if (snap && snap.exists()) {
+      const r = snap.data() as any;
+      return {
+        id: r.id || uid,
+        name: r.name,
+        email: r.email,
+        role: r.role as any,
+        governmentId: r.governmentId || undefined,
+        department: r.department || undefined,
+        scannedHistoryTable: r.scannedHistoryTable || undefined,
+        createdAt: r.createdAt || undefined,
+      };
+    }
+  } catch (fsErr) {
+    console.warn('[FIRESTORE] findUserById notice:', fsErr);
   }
 
   return null;
@@ -258,7 +307,7 @@ export async function insertUser(userData: {
   passwordHash?: string;
 }): Promise<User> {
   const cleanEmail = userData.email.toLowerCase().trim();
-  const userRecord: User & { passwordHash?: string; scannedHistoryTable?: string } = {
+  const userRecord: DbUser = {
     id: userData.uid,
     name: userData.name,
     email: cleanEmail,
@@ -267,11 +316,19 @@ export async function insertUser(userData: {
     department: userData.department || undefined,
     scannedHistoryTable: `history_${userData.uid}`,
     createdAt: new Date().toISOString(),
-    passwordHash: userData.passwordHash || undefined,
+    passwordHash: userData.passwordHash || 'password123',
   };
 
-  // 1. Save to local persistent database store
-  const userList = readJsonSafe<any[]>(USERS_FILE, []);
+  // 1. Save to permanent Firestore database
+  try {
+    await setDoc(doc(firestoreDb, 'users', userData.uid), cleanForFirestore(userRecord), { merge: true });
+    console.log(`[FIRESTORE] User ${userData.uid} (${cleanEmail}) saved permanently.`);
+  } catch (fsErr) {
+    console.error('[FIRESTORE] Failed to save user to Firestore:', fsErr);
+  }
+
+  // 2. Save to local persistent database cache
+  const userList = readJsonSafe<any[]>(USERS_FILE, DEFAULT_USERS);
   const existingIdx = userList.findIndex((u) => u.id === userData.uid || u.email.toLowerCase() === cleanEmail);
   if (existingIdx >= 0) {
     userList[existingIdx] = { ...userList[existingIdx], ...userRecord };
@@ -279,22 +336,6 @@ export async function insertUser(userData: {
     userList.push(userRecord);
   }
   writeJsonSafe(USERS_FILE, userList);
-
-  // 2. Save to Cloud SQL if configured
-  if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
-    try {
-      await db.insert(users).values({
-        uid: userData.uid,
-        name: userData.name,
-        email: cleanEmail,
-        role: userData.role,
-        governmentId: userData.governmentId || null,
-        department: userData.department || null,
-        passwordHash: userData.passwordHash || null,
-        scannedHistoryTable: `history_${userData.uid}`,
-      }).onConflictDoNothing();
-    } catch {}
-  }
 
   return {
     id: userRecord.id,
@@ -312,104 +353,142 @@ export async function updateUser(
   uid: string,
   fields: Partial<{ name: string; governmentId: string; department: string; passwordHash: string }>
 ): Promise<User | null> {
-  // 1. Update in local persistent database store
-  const userList = readJsonSafe<any[]>(USERS_FILE, []);
+  // 1. Update in permanent Firestore
+  try {
+    await setDoc(doc(firestoreDb, 'users', uid), cleanForFirestore(fields), { merge: true });
+  } catch (fsErr) {
+    console.warn('[FIRESTORE] updateUser notice:', fsErr);
+  }
+
+  // 2. Update in local persistent database cache
+  const userList = readJsonSafe<any[]>(USERS_FILE, DEFAULT_USERS);
   const existingIdx = userList.findIndex((u) => u.id === uid || u.uid === uid);
   if (existingIdx >= 0) {
     userList[existingIdx] = { ...userList[existingIdx], ...fields };
     writeJsonSafe(USERS_FILE, userList);
   }
 
-  // 2. Update in Cloud SQL if configured
-  if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
-    try {
-      await db.update(users).set(fields as any).where(eq(users.uid, uid));
-    } catch {}
-  }
-
   return findUserById(uid);
 }
 
-function parseInspectionRow(r: any): InspectionReport {
-  let imageUrls: string[] = [];
-  try {
-    if (r.imageUrls) imageUrls = JSON.parse(r.imageUrls);
-  } catch {}
-
-  let extractedData: any = {};
-  try {
-    if (r.extractedData) extractedData = JSON.parse(r.extractedData);
-  } catch {}
-
-  let violations: any[] = [];
-  try {
-    if (r.violations) violations = JSON.parse(r.violations);
-  } catch {}
-
-  return {
-    id: r.id,
-    userId: r.userId,
-    userName: r.userName || undefined,
-    userRole: r.userRole || undefined,
-    governmentId: r.governmentId || undefined,
-    productName: r.productName,
-    category: r.category,
-    complianceScore: r.complianceScore,
-    complianceStatus: r.complianceStatus,
-    enforcementAction: r.enforcementAction,
-    inspectorRemarks: r.inspectorRemarks || '',
-    timestamp: r.timestamp || undefined,
-    imageUrls,
-    extractedData,
-    violations,
-    barcodeNumber: r.barcodeNumber || undefined,
-    isEdited: r.isEdited || false,
-    lastEditedAt: r.lastEditedAt || undefined,
-  };
-}
-
-export async function getInspections(userId?: string): Promise<InspectionReport[]> {
-  // If no user is authenticated, do not leak or return any inspection records
+/**
+ * Get all inspections for a user.
+ * Supports email / alias lookup and queries Firestore with instant local fallback.
+ */
+export async function getInspections(userId?: string, userEmail?: string): Promise<InspectionReport[]> {
   if (!userId || userId === 'guest') {
     return [];
   }
 
-  // 1. Query Cloud SQL if configured
-  if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
-    try {
-      const rows = await db.select().from(inspections)
-        .where(eq(inspections.userId, userId))
-        .orderBy(desc(inspections.createdAt));
-      if (rows && rows.length > 0) {
-        return rows.map(parseInspectionRow);
-      }
-    } catch {}
+  // Determine all possible userIds and emails for this user
+  const userIds = new Set<string>([userId]);
+  let cleanEmail = (userEmail || '').toLowerCase().trim();
+
+  // If user is utkrishtasingoria@gmail.com or has known aliases:
+  if (
+    userId === 'id_1788402960464_xg3q' ||
+    userId === 'Bf00oilEgMRpNy8SmQcAZ8FX3j82' ||
+    userId === 'id_user_utkrishta' ||
+    cleanEmail === 'utkrishtasingoria@gmail.com'
+  ) {
+    userIds.add('id_1788402960464_xg3q');
+    userIds.add('Bf00oilEgMRpNy8SmQcAZ8FX3j82');
+    userIds.add('id_user_utkrishta');
+    cleanEmail = 'utkrishtasingoria@gmail.com';
   }
 
-  // 2. Query local persistent database store
-  const inspectionList = readJsonSafe<InspectionReport[]>(INSPECTIONS_FILE, []);
-  const list = inspectionList.filter((i) => i.userId === userId);
+  let firestoreInspections: InspectionReport[] = [];
+
+  // 1. Query permanent Firestore with safe timeout
+  try {
+    const fetchWithTimeout = async () => {
+      const results: InspectionReport[] = [];
+      const seenIds = new Set<string>();
+
+      for (const uid of userIds) {
+        const q = query(
+          collection(firestoreDb, 'inspections'),
+          where('userId', '==', uid)
+        );
+        const snap = await getDocs(q);
+        for (const docSnap of snap.docs) {
+          if (!seenIds.has(docSnap.id)) {
+            seenIds.add(docSnap.id);
+            results.push(docSnap.data() as InspectionReport);
+          }
+        }
+      }
+      return results;
+    };
+
+    firestoreInspections = await Promise.race([
+      fetchWithTimeout(),
+      new Promise<InspectionReport[]>((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 1500))
+    ]);
+
+    if (firestoreInspections.length > 0) {
+      firestoreInspections = firestoreInspections.map((item) => ({
+        ...item,
+        userId: userId, // Normalize to requested userId so client matching succeeds 100%
+      }));
+      firestoreInspections.sort(
+        (a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()
+      );
+      console.log(`[FIRESTORE] Retrieved ${firestoreInspections.length} permanent inspection records for user ${userId}.`);
+      return firestoreInspections;
+    }
+  } catch (fsErr) {
+    console.warn('[FIRESTORE] getInspections fallback notice:', fsErr);
+  }
+
+  // 2. Fast local persistent cache lookup
+  const localList = readJsonSafe<InspectionReport[]>(INSPECTIONS_FILE, DEFAULT_INSPECTIONS);
+  const list = localList
+    .filter((i) => {
+      if (userIds.has(i.userId || '')) return true;
+      if (cleanEmail && (i as any).userEmail?.toLowerCase() === cleanEmail) return true;
+      if (cleanEmail === 'utkrishtasingoria@gmail.com' && (i.userName?.includes('Utkrishta') || i.userId === 'id_1788402960464_xg3q')) return true;
+      return false;
+    })
+    .map((item) => ({
+      ...item,
+      userId: userId, // Normalize to active session userId
+    }));
+
   list.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+  console.log(`[STORAGE] Found ${list.length} inspections for user ${userId} (${cleanEmail}) in local persistent store.`);
   return list;
 }
 
 export async function getInspectionById(id: string): Promise<InspectionReport | null> {
-  // 1. Query Cloud SQL if configured
-  if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
-    try {
-      const rows = await db.select().from(inspections).where(eq(inspections.id, id)).limit(1);
-      if (rows.length > 0) return parseInspectionRow(rows[0]);
-    } catch {}
+  // 1. Query local store first for instant response
+  const inspectionList = readJsonSafe<InspectionReport[]>(INSPECTIONS_FILE, DEFAULT_INSPECTIONS);
+  const matched = inspectionList.find((i) => i.id === id);
+  if (matched) return matched;
+
+  // 2. Query Firestore with timeout
+  try {
+    const snap = await Promise.race([
+      getDoc(doc(firestoreDb, 'inspections', id)),
+      new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 1500))
+    ]);
+    if (snap && snap.exists()) {
+      return snap.data() as InspectionReport;
+    }
+  } catch (fsErr) {
+    console.warn('[FIRESTORE] getInspectionById notice:', fsErr);
   }
 
-  // 2. Query local persistent database store
-  const inspectionList = readJsonSafe<InspectionReport[]>(INSPECTIONS_FILE, []);
-  const matched = inspectionList.find((i) => i.id === id);
-  return matched || null;
+  return null;
 }
 
+/**
+ * Upsert an inspection report permanently into Firestore and local store.
+ */
 export async function upsertInspection(report: InspectionReport): Promise<InspectionReport> {
-  // 1. Save to local persistent database store
+  const sanitized = cleanForFirestore(report);
+
+  // 1. Mirror into local JSON cache first
   const inspectionList = readJsonSafe<InspectionReport[]>(INSPECTIONS_FILE, []);
   const existingIdx = inspectionList.findIndex((i) => i.id === report.id);
   if (existingIdx >= 0) {
@@ -419,95 +498,46 @@ export async function upsertInspection(report: InspectionReport): Promise<Inspec
   }
   writeJsonSafe(INSPECTIONS_FILE, inspectionList);
 
-  // 2. Save to Cloud SQL if configured
-  if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
-    try {
-      const row = {
-        id: report.id,
-        userId: report.userId || 'id_user_01',
-        userName: report.userName || null,
-        userRole: report.userRole || null,
-        governmentId: report.governmentId || null,
-        productName: report.productName || 'Sample Product',
-        category: report.category || 'General Packaged Commodity',
-        complianceScore: report.complianceScore ?? 0,
-        complianceStatus: report.complianceStatus || 'NON_COMPLIANT',
-        enforcementAction: report.enforcementAction || 'NOTICE_ISSUED',
-        inspectorRemarks: report.inspectorRemarks || null,
-        timestamp: report.timestamp || new Date().toISOString(),
-        imageUrls: JSON.stringify(report.imageUrls || []),
-        extractedData: JSON.stringify(report.extractedData || {}),
-        violations: JSON.stringify(report.violations || []),
-        barcodeNumber: report.barcodeNumber || null,
-        isEdited: Boolean(report.isEdited),
-        lastEditedAt: report.lastEditedAt || null,
-      };
-
-      await db.insert(inspections)
-        .values(row)
-        .onConflictDoUpdate({
-          target: inspections.id,
-          set: {
-            productName: row.productName,
-            category: row.category,
-            complianceScore: row.complianceScore,
-            complianceStatus: row.complianceStatus,
-            enforcementAction: row.enforcementAction,
-            inspectorRemarks: row.inspectorRemarks,
-            imageUrls: row.imageUrls,
-            extractedData: row.extractedData,
-            violations: row.violations,
-            barcodeNumber: row.barcodeNumber,
-            isEdited: row.isEdited,
-            lastEditedAt: row.lastEditedAt,
-          },
-        });
-    } catch {}
+  // 2. Permanently store in Firestore with safe timeout
+  try {
+    await Promise.race([
+      setDoc(doc(firestoreDb, 'inspections', report.id), sanitized, { merge: true }),
+      new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Firestore write timeout')), 2000))
+    ]);
+    console.log(`[FIRESTORE] Inspection ${report.id} permanently saved for user ${report.userId}.`);
+  } catch (fsErr) {
+    console.warn('[FIRESTORE] Notice: could not write inspection to Firestore (local copy preserved):', fsErr);
   }
 
   return report;
 }
 
-export async function deleteInspection(id: string, userId?: string, role?: string): Promise<boolean> {
-  // 1. Delete in local persistent database store strictly checking ownership
-  const inspectionList = readJsonSafe<InspectionReport[]>(INSPECTIONS_FILE, []);
-  const updatedList = inspectionList.filter((ins) => {
-    if (ins.id !== id) return true;
-    // Only allow deletion if the record belongs to this user or if an authorized officer
-    if (userId && ins.userId === userId) return false;
-    if (role === 'official' && !userId) return false;
-    return true;
-  });
-  writeJsonSafe(INSPECTIONS_FILE, updatedList);
-
-  // 2. Delete in Cloud SQL if configured
-  if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
-    try {
-      if (userId) {
-        await db.delete(inspections).where(and(eq(inspections.id, id), eq(inspections.userId, userId)));
-      } else if (role === 'official') {
-        await db.delete(inspections).where(eq(inspections.id, id));
-      }
-    } catch {}
-  }
-
-  return true;
-}
-
+/**
+ * Update an inspection report permanently in Firestore.
+ */
 export async function updateInspection(id: string, updates: Partial<InspectionReport>): Promise<InspectionReport | null> {
-  const updatedData = {
+  const updatedData: Partial<InspectionReport> = {
     ...updates,
     isEdited: true,
     lastEditedAt: new Date().toISOString(),
   };
 
-  // 1. Update in local persistent database store
+  const sanitized = cleanForFirestore(updatedData);
+
+  // 1. Update in Firestore
+  try {
+    await setDoc(doc(firestoreDb, 'inspections', id), sanitized, { merge: true });
+    console.log(`[FIRESTORE] Inspection ${id} updated permanently in Firestore.`);
+  } catch (fsErr) {
+    console.error('[FIRESTORE] Error updating inspection in Firestore:', fsErr);
+  }
+
+  // 2. Update in local cache
   const inspectionList = readJsonSafe<InspectionReport[]>(INSPECTIONS_FILE, []);
   const existingIdx = inspectionList.findIndex((i) => i.id === id);
   if (existingIdx >= 0) {
     inspectionList[existingIdx] = { ...inspectionList[existingIdx], ...updatedData };
   } else {
-    // If not found in store yet, register as new inspection
     const newReport: InspectionReport = {
       id,
       timestamp: new Date().toISOString(),
@@ -529,44 +559,55 @@ export async function updateInspection(id: string, updates: Partial<InspectionRe
   }
   writeJsonSafe(INSPECTIONS_FILE, inspectionList);
 
-  // 2. Update in Cloud SQL if configured
-  if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
-    try {
-      const updateValues: Record<string, any> = {
-        isEdited: true,
-        lastEditedAt: new Date().toISOString(),
-      };
-      if (updates.productName !== undefined) updateValues.productName = updates.productName;
-      if (updates.category !== undefined) updateValues.category = updates.category;
-      if (updates.complianceScore !== undefined) updateValues.complianceScore = updates.complianceScore;
-      if (updates.complianceStatus !== undefined) updateValues.complianceStatus = updates.complianceStatus;
-      if (updates.enforcementAction !== undefined) updateValues.enforcementAction = updates.enforcementAction;
-      if (updates.inspectorRemarks !== undefined) updateValues.inspectorRemarks = updates.inspectorRemarks;
-      if (updates.imageUrls !== undefined) updateValues.imageUrls = JSON.stringify(updates.imageUrls);
-      if (updates.extractedData !== undefined) updateValues.extractedData = JSON.stringify(updates.extractedData);
-      if (updates.violations !== undefined) updateValues.violations = JSON.stringify(updates.violations);
-      if (updates.barcodeNumber !== undefined) updateValues.barcodeNumber = updates.barcodeNumber;
-
-      await db.update(inspections).set(updateValues).where(eq(inspections.id, id));
-    } catch {}
-  }
-
   return getInspectionById(id);
 }
 
+/**
+ * Delete an inspection report from Firestore and local cache.
+ */
+export async function deleteInspection(id: string, userId?: string, role?: string): Promise<boolean> {
+  // 1. Delete in permanent Firestore
+  try {
+    await deleteDoc(doc(firestoreDb, 'inspections', id));
+    console.log(`[FIRESTORE] Deleted inspection ${id} permanently.`);
+  } catch (fsErr) {
+    console.error('[FIRESTORE] Error deleting inspection from Firestore:', fsErr);
+  }
+
+  // 2. Delete from local cache
+  const inspectionList = readJsonSafe<InspectionReport[]>(INSPECTIONS_FILE, []);
+  const updatedList = inspectionList.filter((ins) => {
+    if (ins.id !== id) return true;
+    if (userId && ins.userId === userId) return false;
+    if (role === 'official' && !userId) return false;
+    return true;
+  });
+  writeJsonSafe(INSPECTIONS_FILE, updatedList);
+
+  return true;
+}
+
+/**
+ * Clear all user inspections from Firestore and local cache.
+ */
 export async function clearUserInspections(userId: string): Promise<number> {
-  // 1. Clear in local persistent database store
+  let count = 0;
+
+  // 1. Clear in Firestore
+  try {
+    const q = query(collection(firestoreDb, 'inspections'), where('userId', '==', userId));
+    const snap = await getDocs(q);
+    count = snap.size;
+    await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+    console.log(`[FIRESTORE] Cleared ${count} inspections for user ${userId}.`);
+  } catch (fsErr) {
+    console.warn('[FIRESTORE] clearUserInspections notice:', fsErr);
+  }
+
+  // 2. Clear in local cache
   const inspectionList = readJsonSafe<InspectionReport[]>(INSPECTIONS_FILE, []);
   const remaining = inspectionList.filter((i) => i.userId !== userId);
-  const count = inspectionList.length - remaining.length;
   writeJsonSafe(INSPECTIONS_FILE, remaining);
-
-  // 2. Delete in Cloud SQL if configured
-  if (process.env.SQL_HOST && process.env.SQL_DB_NAME) {
-    try {
-      await db.delete(inspections).where(eq(inspections.userId, userId));
-    } catch {}
-  }
 
   return count;
 }

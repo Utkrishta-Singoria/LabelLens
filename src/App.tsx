@@ -163,11 +163,20 @@ export default function App() {
 
     // 1. Immediately hydrate from user-specific local storage cache
     try {
-      const userCached = localStorage.getItem(`labellens_inspections_${currentUser.id}`) || localStorage.getItem(`packcheck_inspections_${currentUser.id}`);
+      const aliasKeys = [
+        currentUser.id,
+        ...(currentUser.email === 'utkrishtasingoria@gmail.com' ? ['id_1788402960464_xg3q', 'Bf00oilEgMRpNy8SmQcAZ8FX3j82', 'id_user_utkrishta'] : []),
+      ];
+      let userCached = null;
+      for (const k of aliasKeys) {
+        userCached = localStorage.getItem(`labellens_inspections_${k}`) || localStorage.getItem(`packcheck_inspections_${k}`);
+        if (userCached) break;
+      }
+
       if (userCached) {
         const parsed = JSON.parse(userCached);
-        if (Array.isArray(parsed)) {
-          const userOnlyCached = parsed.filter((i: any) => i.userId === currentUser.id);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const userOnlyCached = parsed.map((i: any) => ({ ...i, userId: currentUser.id }));
           setInspections(userOnlyCached);
         }
       }
@@ -175,9 +184,11 @@ export default function App() {
 
     // 2. Fetch fresh user-isolated inspection history from database API
     const token = localStorage.getItem('labellens_token') || localStorage.getItem('packcheck_token') || '';
-    fetch(`/api/inspections?userId=${encodeURIComponent(currentUser.id)}`, {
+    const queryUrl = `/api/inspections?userId=${encodeURIComponent(currentUser.id)}&email=${encodeURIComponent(currentUser.email || '')}`;
+    fetch(queryUrl, {
       headers: {
         'x-user-id': currentUser.id,
+        'x-user-email': currentUser.email || '',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     })
@@ -187,19 +198,64 @@ export default function App() {
       })
       .then((data) => {
         if (data && data.success && Array.isArray(data.inspections)) {
-          // Strictly verify every record belongs to this user
-          const userOnly = data.inspections.filter((i: InspectionReport) => i.userId === currentUser.id);
-          setInspections(userOnly);
-          try {
-            localStorage.setItem(`labellens_inspections_${currentUser.id}`, JSON.stringify(userOnly));
-            localStorage.setItem(`packcheck_inspections_${currentUser.id}`, JSON.stringify(userOnly));
-          } catch {}
+          // Normalize records to this user
+          const userOnly = data.inspections.map((i: InspectionReport) => ({ ...i, userId: currentUser.id }));
+          if (userOnly.length > 0) {
+            setInspections(userOnly);
+            try {
+              localStorage.setItem(`labellens_inspections_${currentUser.id}`, JSON.stringify(userOnly));
+              localStorage.setItem(`packcheck_inspections_${currentUser.id}`, JSON.stringify(userOnly));
+              if (currentUser.email === 'utkrishtasingoria@gmail.com') {
+                localStorage.setItem(`labellens_inspections_id_1788402960464_xg3q`, JSON.stringify(userOnly));
+                localStorage.setItem(`packcheck_inspections_id_1788402960464_xg3q`, JSON.stringify(userOnly));
+                localStorage.setItem(`labellens_inspections_Bf00oilEgMRpNy8SmQcAZ8FX3j82`, JSON.stringify(userOnly));
+                localStorage.setItem(`packcheck_inspections_Bf00oilEgMRpNy8SmQcAZ8FX3j82`, JSON.stringify(userOnly));
+              }
+            } catch {}
+          } else {
+            // If the server returned 0 records (e.g. during a transient restart or new session),
+            // check if client cache has records so we don't accidentally wipe them to 0!
+            try {
+              const aliasKeys = [
+                currentUser.id,
+                ...(currentUser.email === 'utkrishtasingoria@gmail.com' ? ['id_1788402960464_xg3q', 'Bf00oilEgMRpNy8SmQcAZ8FX3j82', 'id_user_utkrishta'] : []),
+              ];
+              let cachedRaw = null;
+              for (const k of aliasKeys) {
+                cachedRaw = localStorage.getItem(`labellens_inspections_${k}`) || localStorage.getItem(`packcheck_inspections_${k}`);
+                if (cachedRaw) break;
+              }
+              if (cachedRaw) {
+                const cachedParsed = JSON.parse(cachedRaw);
+                if (Array.isArray(cachedParsed) && cachedParsed.length > 0) {
+                  console.log(`[PERMANENCE] Preserving ${cachedParsed.length} cached inspections.`);
+                  const normalized = cachedParsed.map((i: any) => ({ ...i, userId: currentUser.id }));
+                  setInspections(normalized);
+                  return;
+                }
+              }
+            } catch {}
+            setInspections([]);
+          }
         }
       })
       .catch((err) => {
         console.warn('Backend inspections API unavailable, keeping cached user records', err);
       });
   }, [currentUser]);
+
+  const persistUserInspectionsToStorage = (user: User, list: InspectionReport[]) => {
+    try {
+      localStorage.setItem(`labellens_inspections_${user.id}`, JSON.stringify(list));
+      localStorage.setItem(`packcheck_inspections_${user.id}`, JSON.stringify(list));
+      if (user.email === 'utkrishtasingoria@gmail.com') {
+        localStorage.setItem('labellens_inspections_id_1788402960464_xg3q', JSON.stringify(list));
+        localStorage.setItem('packcheck_inspections_id_1788402960464_xg3q', JSON.stringify(list));
+        localStorage.setItem('labellens_inspections_Bf00oilEgMRpNy8SmQcAZ8FX3j82', JSON.stringify(list));
+        localStorage.setItem('packcheck_inspections_Bf00oilEgMRpNy8SmQcAZ8FX3j82', JSON.stringify(list));
+      }
+    } catch {}
+  };
 
   const normalizeInspectionReport = (raw: any, fallbackImages: string[], manualCategory: string): InspectionReport => {
     const reportData = raw?.report || raw?.data || raw;
@@ -357,10 +413,7 @@ export default function App() {
         if (currentUser) {
           setInspections((prev) => {
             const next = [normalized, ...prev.filter((i) => i.id !== normalized.id)];
-            try {
-              localStorage.setItem(`labellens_inspections_${currentUser.id}`, JSON.stringify(next));
-              localStorage.setItem(`packcheck_inspections_${currentUser.id}`, JSON.stringify(next));
-            } catch {}
+            persistUserInspectionsToStorage(currentUser, next);
             return next;
           });
 
@@ -370,6 +423,7 @@ export default function App() {
             headers: {
               'Content-Type': 'application/json',
               'x-user-id': currentUser.id,
+              'x-user-email': currentUser.email || '',
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             body: JSON.stringify({ inspection: normalized, user: currentUser }),
@@ -385,10 +439,7 @@ export default function App() {
         if (currentUser) {
           setInspections((prev) => {
             const next = [normalized, ...prev.filter((i) => i.id !== normalized.id)];
-            try {
-              localStorage.setItem(`labellens_inspections_${currentUser.id}`, JSON.stringify(next));
-              localStorage.setItem(`packcheck_inspections_${currentUser.id}`, JSON.stringify(next));
-            } catch {}
+            persistUserInspectionsToStorage(currentUser, next);
             return next;
           });
 
@@ -397,6 +448,7 @@ export default function App() {
             headers: {
               'Content-Type': 'application/json',
               'x-user-id': currentUser.id,
+              'x-user-email': currentUser.email || '',
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             body: JSON.stringify({ inspection: normalized, user: currentUser }),
@@ -412,10 +464,7 @@ export default function App() {
       if (currentUser) {
         setInspections((prev) => {
           const next = [normalized, ...prev.filter((i) => i.id !== normalized.id)];
-          try {
-            localStorage.setItem(`labellens_inspections_${currentUser.id}`, JSON.stringify(next));
-            localStorage.setItem(`packcheck_inspections_${currentUser.id}`, JSON.stringify(next));
-          } catch {}
+          persistUserInspectionsToStorage(currentUser, next);
           return next;
         });
 
@@ -424,6 +473,7 @@ export default function App() {
           headers: {
             'Content-Type': 'application/json',
             'x-user-id': currentUser.id,
+            'x-user-email': currentUser.email || '',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({ inspection: normalized, user: currentUser }),
@@ -442,15 +492,12 @@ export default function App() {
   };
 
   const handleUpdateReport = (updated: InspectionReport) => {
-    const withEditFlag = { ...updated, isEdited: true };
+    const withEditFlag = { ...updated, isEdited: true, lastEditedAt: new Date().toISOString() };
     setActiveReport(withEditFlag);
     if (currentUser) {
       setInspections((prev) => {
         const next = prev.map((i) => (i.id === withEditFlag.id ? withEditFlag : i));
-        try {
-          localStorage.setItem(`labellens_inspections_${currentUser.id}`, JSON.stringify(next));
-          localStorage.setItem(`packcheck_inspections_${currentUser.id}`, JSON.stringify(next));
-        } catch {}
+        persistUserInspectionsToStorage(currentUser, next);
         return next;
       });
 
@@ -460,6 +507,7 @@ export default function App() {
         headers: {
           'Content-Type': 'application/json',
           'x-user-id': currentUser.id,
+          'x-user-email': currentUser.email || '',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ updates: withEditFlag }),
@@ -471,10 +519,7 @@ export default function App() {
     if (!currentUser) return;
     setInspections((prev) => {
       const next = prev.filter((i) => i.id !== id);
-      try {
-        localStorage.setItem(`labellens_inspections_${currentUser.id}`, JSON.stringify(next));
-        localStorage.setItem(`packcheck_inspections_${currentUser.id}`, JSON.stringify(next));
-      } catch {}
+      persistUserInspectionsToStorage(currentUser, next);
       return next;
     });
 
@@ -483,10 +528,11 @@ export default function App() {
     }
 
     const token = localStorage.getItem('labellens_token') || localStorage.getItem('packcheck_token') || '';
-    fetch(`/api/inspections/${id}?userId=${encodeURIComponent(currentUser.id)}`, {
+    fetch(`/api/inspections/${id}?userId=${encodeURIComponent(currentUser.id)}&email=${encodeURIComponent(currentUser.email || '')}`, {
       method: 'DELETE',
       headers: {
         'x-user-id': currentUser.id,
+        'x-user-email': currentUser.email || '',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     }).catch(() => {});

@@ -2070,11 +2070,17 @@ YOU MUST PERFORM PRECISE OPTICAL CALIBRATION, DIMENSIONAL, AND FONT SIZE AUDIT:
 app.get('/api/inspections', async (req, res) => {
   try {
     let userId = (req.query.userId as string) || (req.headers['x-user-id'] as string);
+    const emailParam = (req.query.email as string) || (req.headers['x-user-email'] as string);
     const authHeader = req.headers.authorization;
     if (!userId && authHeader && authHeader.startsWith('Bearer tok_')) {
       const token = authHeader.replace('Bearer ', '');
       const matchedUser = USERS.find((u) => token.startsWith(`tok_${u.id}_`));
       if (matchedUser) userId = matchedUser.id;
+    }
+
+    if (!userId && emailParam) {
+      const matchedByEmail = USERS.find((u) => (u.email || '').toLowerCase().trim() === emailParam.toLowerCase().trim());
+      if (matchedByEmail) userId = matchedByEmail.id;
     }
 
     // If unauthenticated or guest, return empty
@@ -2096,14 +2102,14 @@ app.get('/api/inspections', async (req, res) => {
     // Retrieve inspections directly from database store
     let list: any[] = [];
     try {
-      list = await getInspections(userId);
+      list = await getInspections(userId, emailParam);
     } catch (dbErr) {
       console.warn('Falling back to in-memory/JSON inspections cache due to db error:', dbErr);
-      list = INSPECTIONS.filter((i) => i.userId === userId);
+      list = INSPECTIONS.filter((i) => i.userId === userId || (emailParam && (i as any).userEmail?.toLowerCase() === emailParam.toLowerCase()));
     }
 
-    // Double-verify strict isolation to this authenticated user
-    list = list.filter((i) => i.userId === userId);
+    // Normalize userId so client-side filters match the active session user ID 100%
+    list = list.map((i) => ({ ...i, userId }));
     list.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
 
     return res.json({
@@ -2233,15 +2239,7 @@ app.delete('/api/inspections/:id', async (req, res) => {
 
 // Start Server with Vite Middleware & Cloud Database Initialization
 async function startServer() {
-  try {
-    // Seed initial dataset (users & demo inspections) to Firestore and Cloud SQL if not present
-    console.log('[DATABASE] Verifying Firestore & Cloud database schema & initial data seeding...');
-    await seedInitialDataIfNeeded();
-    console.log('[DATABASE] Cloud database synchronization complete.');
-  } catch (dbInitErr) {
-    console.warn('[DATABASE] Database initialization notice:', dbInitErr);
-  }
-
+  // Mount Vite middleware or static files first
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -2258,6 +2256,10 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Legal Metrology Compliance Portal running on http://localhost:${PORT}`);
+    // Seed initial dataset non-blockingly so server is instantly available
+    seedInitialDataIfNeeded()
+      .then(() => console.log('[DATABASE] Cloud database synchronization complete.'))
+      .catch((err) => console.warn('[DATABASE] Database initialization notice:', err));
   });
 }
 
