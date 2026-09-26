@@ -1,6 +1,6 @@
 import React from 'react';
 import { User } from '../types';
-import { ShieldCheck, Scale, LayoutDashboard, LogIn, LogOut, BookOpen, Activity, Terminal, ShieldAlert, Lock, Sun, Moon } from 'lucide-react';
+import { ShieldCheck, Scale, LayoutDashboard, LogIn, LogOut, BookOpen, Terminal, ShieldAlert, Lock, Sun, Moon } from 'lucide-react';
 
 interface NavbarProps {
   currentUser: User | null;
@@ -28,15 +28,6 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Top Center Masthead / Brand Header */}
       <div className="bg-[#EFE8DC] dark:bg-[#07090E] border-b border-[#E2D7C7] dark:border-slate-800/80 px-4 sm:px-6 py-2.5 transition-colors">
         <div className="max-w-7xl mx-auto flex flex-col items-center justify-center text-center relative">
-          
-          {/* Official DoCA Status Pill - Positioned left on desktop */}
-          <div className="hidden lg:flex items-center gap-2 absolute left-0 text-xs text-[#332421]/80 dark:text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-[#2D5D4F] dark:bg-emerald-500 animate-pulse"></span>
-            <span className="font-semibold text-[#332421] dark:text-slate-300">DoCA Legal Metrology</span>
-            <span className="text-[#332421]/40 dark:text-slate-600">•</span>
-            <span className="text-[11px] text-[#332421]/70 dark:text-slate-400">PCR Rules, 2011</span>
-          </div>
-
           {/* Centered Brand Title & Subtitle */}
           <div
             onClick={() => onSelectTab('scanner')}
@@ -50,21 +41,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="packcheck-heading labellens-heading text-[#D4AF37]">LabelLens</span>
                 <span className="text-[#8E562E] dark:text-sky-400 font-mono text-lg sm:text-xl font-bold bg-[#D4AF37]/15 dark:bg-sky-500/20 px-1.5 py-0.5 rounded border border-[#D4AF37]/30 dark:border-sky-500/20">AI</span>
               </h1>
-              <span className="hidden sm:inline-flex text-[10px] font-mono font-semibold uppercase tracking-wider bg-[#EFE8DC] dark:bg-sky-950/70 text-[#8E562E] dark:text-sky-300 border border-[#E2D7C7] dark:border-sky-800/60 px-2 py-0.5 rounded-full">
-                Official Portal
-              </span>
             </div>
             <p className="text-[11px] sm:text-xs text-[#332421]/75 dark:text-slate-400 font-medium tracking-normal mt-0.5 truncate max-w-[90vw] sm:max-w-xl text-center">
               Statutory Label & Metric Compliance Verifier
             </p>
-          </div>
-
-          {/* System Telemetry - Positioned right on desktop */}
-          <div className="hidden lg:flex items-center gap-3 absolute right-0 text-[11px]">
-            <span className="text-[#2D5D4F] dark:text-emerald-400 flex items-center gap-1 font-medium bg-[#E7F0EB] dark:bg-emerald-950/40 border border-[#A3C6B9] dark:border-emerald-800/50 px-2.5 py-1 rounded-md">
-              <Activity className="w-3 h-3" />
-              <span>System Online</span>
-            </span>
           </div>
         </div>
       </div>

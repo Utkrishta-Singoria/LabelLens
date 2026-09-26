@@ -21,6 +21,7 @@ import {
   Ruler,
   Coins,
   CreditCard,
+  ChevronDown,
 } from 'lucide-react';
 import { PackagedCommodityCategory, ReferenceObjectType } from '../types';
 import { STANDARD_PACK_RULES, SAMPLE_PRODUCTS } from '../data/legalMetrologyRules';
@@ -84,6 +85,30 @@ export const ScannerSection: React.FC<ScannerSectionProps> = ({
   // Image Processing state
   const [filterMode, setFilterMode] = useState<'normal' | 'contrast' | 'grayscale' | 'sharpness'>('normal');
   const [showBoundingBoxes, setShowBoundingBoxes] = useState<boolean>(true);
+
+  // Quick Demo Dropdown Menu state
+  const [isDemoDropdownOpen, setIsDemoDropdownOpen] = useState<boolean>(false);
+  const [isDemoCardsExpanded, setIsDemoCardsExpanded] = useState<boolean>(false);
+  const [activeSampleTitle, setActiveSampleTitle] = useState<string>('');
+  const demoDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (demoDropdownRef.current && !demoDropdownRef.current.contains(event.target as Node)) {
+        setIsDemoDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleSelectSample = (sample: any) => {
+    setActiveSampleTitle(sample.productName);
+    setIsDemoDropdownOpen(false);
+    onLoadSample(sample);
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -221,56 +246,161 @@ export const ScannerSection: React.FC<ScannerSectionProps> = ({
         </div>
       </div>
 
-      {/* Quick Test Benchmark Scenarios - Inviting for New Users */}
-      <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-4 pb-3 border-b border-slate-800/80">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-sky-400" />
-            <h2 className="text-sm font-semibold text-slate-200">
-              Quick Demo Samples
-            </h2>
-          </div>
-          <span className="text-xs text-slate-400">
-            Click any sample to load real package evidence and test the verification flow:
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {SAMPLE_PRODUCTS.map((sample, idx) => (
-            <div
-              key={sample.id || idx}
-              onClick={() => onLoadSample(sample)}
-              className="group cursor-pointer bg-slate-950/70 hover:bg-slate-900 border border-slate-800/90 hover:border-sky-500/50 p-4 rounded-xl transition-all flex flex-col justify-between shadow-xs hover:shadow-md hover:-translate-y-0.5"
-            >
-              <div>
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="text-sm font-bold text-slate-200 group-hover:text-sky-300 line-clamp-1 font-sans">
-                    {sample.productName}
-                  </span>
-                  <span
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0 ${
-                      sample.complianceStatus === 'COMPLIANT'
-                        ? 'bg-emerald-950/70 text-emerald-400 border border-emerald-800/60'
-                        : 'bg-rose-950/70 text-rose-400 border border-rose-800/60'
-                    }`}
-                  >
-                    {sample.complianceStatus === 'COMPLIANT' ? '100% Pass' : 'Violation'}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 line-clamp-2 mb-3 leading-relaxed">
-                  {sample.inspectorRemarks}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between pt-3 border-t border-slate-800/80 text-xs">
-                <span className="text-slate-500 truncate max-w-[150px]">{sample.category}</span>
-                <span className="text-sky-400 group-hover:text-sky-300 flex items-center gap-1 font-medium">
-                  Test Sample &rarr;
+      {/* Quick Test Benchmark Scenarios - Dropdown Menu to save space */}
+      <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-3 sm:px-4 shadow-sm backdrop-blur-sm transition-all">
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
+          {/* Section label and info */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 shrink-0">
+              <Zap className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs sm:text-sm font-bold text-slate-200">
+                  Quick Demo Samples
+                </span>
+                <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700/60 hidden sm:inline-block">
+                  3 Benchmarks
                 </span>
               </div>
+              <p className="text-[11px] text-slate-400 hidden md:block">
+                Choose a pre-packaged benchmark to test statutory compliance audit
+              </p>
             </div>
-          ))}
+          </div>
+
+          {/* Dropdown Menu & Quick Action Controls */}
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            {/* The Dropdown Menu */}
+            <div className="relative w-full sm:w-auto" ref={demoDropdownRef}>
+              <button
+                type="button"
+                id="quick-demo-dropdown-trigger"
+                onClick={() => setIsDemoDropdownOpen((prev) => !prev)}
+                className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2.5 px-3.5 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700/80 hover:border-sky-500/50 text-slate-200 text-xs font-medium transition-all shadow-xs cursor-pointer group"
+                aria-expanded={isDemoDropdownOpen}
+                aria-haspopup="true"
+              >
+                <div className="flex items-center gap-2 truncate max-w-[240px]">
+                  <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+                  <span className="truncate">
+                    {activeSampleTitle ? activeSampleTitle : 'Select Demo Sample...'}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-slate-400 group-hover:text-sky-400 transition-transform duration-200 shrink-0 ${
+                    isDemoDropdownOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Dropdown Menu Popup */}
+              {isDemoDropdownOpen && (
+                <div
+                  id="quick-demo-dropdown-menu"
+                  className="absolute right-0 top-full mt-1.5 w-full sm:w-[380px] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden py-1 divide-y divide-slate-800/80 animate-in fade-in duration-150"
+                  role="menu"
+                >
+                  <div className="px-3.5 py-2 bg-slate-950/70 flex items-center justify-between text-[11px] font-semibold text-slate-400">
+                    <span>SELECT BENCHMARK EVIDENCE</span>
+                    <span className="text-[10px] text-sky-400 font-normal">Click to load</span>
+                  </div>
+
+                  <div className="max-h-[300px] overflow-y-auto divide-y divide-slate-800/60">
+                    {SAMPLE_PRODUCTS.map((sample, idx) => (
+                      <button
+                        key={sample.id || idx}
+                        type="button"
+                        onClick={() => handleSelectSample(sample)}
+                        className="w-full text-left p-3 hover:bg-slate-800/70 transition-colors flex flex-col gap-1 cursor-pointer group"
+                        role="menuitem"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-200 group-hover:text-sky-300 line-clamp-1">
+                            {sample.productName}
+                          </span>
+                          <span
+                            className={`text-[9px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
+                              sample.complianceStatus === 'COMPLIANT'
+                                ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/60'
+                                : 'bg-rose-950/80 text-rose-400 border border-rose-800/60'
+                            }`}
+                          >
+                            {sample.complianceStatus === 'COMPLIANT' ? '100% Pass' : 'Violation'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 line-clamp-1 leading-snug">
+                          {sample.inspectorRemarks}
+                        </p>
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
+                          <span className="truncate max-w-[200px]">{sample.category}</span>
+                          <span className="text-sky-400 font-medium group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                            Load Benchmark &rarr;
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Optional Expand/Collapse Cards Toggle */}
+            <button
+              type="button"
+              onClick={() => setIsDemoCardsExpanded((prev) => !prev)}
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 bg-slate-950/50 hover:bg-slate-800 text-slate-400 hover:text-slate-300 text-xs transition-colors cursor-pointer shrink-0"
+              title={isDemoCardsExpanded ? 'Hide sample cards' : 'View full sample cards'}
+            >
+              <span>{isDemoCardsExpanded ? 'Hide Cards' : 'View Cards'}</span>
+              <ChevronDown
+                className={`w-3 h-3 transition-transform duration-200 ${
+                  isDemoCardsExpanded ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+          </div>
         </div>
+
+        {/* Collapsible Cards Grid - Only rendered if user explicitly toggles View Cards */}
+        {isDemoCardsExpanded && (
+          <div className="mt-3 pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-3 gap-3 animate-in fade-in duration-200">
+            {SAMPLE_PRODUCTS.map((sample, idx) => (
+              <div
+                key={sample.id || idx}
+                onClick={() => handleSelectSample(sample)}
+                className="group cursor-pointer bg-slate-950/70 hover:bg-slate-800 border border-slate-800 hover:border-sky-500/50 p-3.5 rounded-xl transition-all flex flex-col justify-between shadow-xs hover:-translate-y-0.5"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-xs font-bold text-slate-200 group-hover:text-sky-300 line-clamp-1 font-sans">
+                      {sample.productName}
+                    </span>
+                    <span
+                      className={`text-[9px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0 ${
+                        sample.complianceStatus === 'COMPLIANT'
+                          ? 'bg-emerald-950/70 text-emerald-400 border border-emerald-800/60'
+                          : 'bg-rose-950/70 text-rose-400 border border-rose-800/60'
+                      }`}
+                    >
+                      {sample.complianceStatus === 'COMPLIANT' ? '100% Pass' : 'Violation'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 line-clamp-2 mb-2 leading-relaxed">
+                    {sample.inspectorRemarks}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[11px]">
+                  <span className="text-slate-500 truncate max-w-[140px]">{sample.category}</span>
+                  <span className="text-sky-400 group-hover:text-sky-300 flex items-center gap-1 font-medium">
+                    Test Sample &rarr;
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Main Scanner Workspace Grid */}
