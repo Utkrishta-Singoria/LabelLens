@@ -68,10 +68,13 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const [isReportingToGov, setIsReportingToGov] = useState<boolean>(false);
   const [copiedGrievance, setCopiedGrievance] = useState<boolean>(false);
   const [showReportSuccessNotice, setShowReportSuccessNotice] = useState<boolean>(false);
+  const [hasCheckedPhysicalProduct, setHasCheckedPhysicalProduct] = useState<boolean>(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
 
   // Sync state if a new report is passed
   useEffect(() => {
     setEditedReport(report);
+    setHasCheckedPhysicalProduct(false);
   }, [report]);
 
   // Evidence Lightbox Inspector state
@@ -1127,14 +1130,49 @@ FSSAI Consumer Grievance: compliance@fssai.gov.in`;
               Statutory infractions detected under the Legal Metrology (Packaged Commodities) Rules, 2011 are liable for regulatory inquiry and compounding under Section 36 of the Legal Metrology Act, 2009. You can report this violation directly to the Department of Consumer Affairs with attached evidentiary proof.
             </p>
 
-            {/* Single-Click Action Button */}
+            {/* Confirmation Step Before Sending */}
+            <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-3 my-1">
+              <label className="flex items-start sm:items-center gap-2.5 cursor-pointer text-xs text-slate-200 select-none">
+                <input
+                  type="checkbox"
+                  id="confirm-physical-product-check"
+                  checked={hasCheckedPhysicalProduct}
+                  onChange={(e) => setHasCheckedPhysicalProduct(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 sm:mt-0 rounded border-slate-700 bg-slate-950 text-rose-600 focus:ring-rose-500 cursor-pointer accent-rose-600 shrink-0"
+                />
+                <span className="font-semibold text-slate-100">
+                  I have checked this on the physical product.
+                </span>
+              </label>
+              {!hasCheckedPhysicalProduct && (
+                <p className="text-[11px] text-slate-400 mt-1 pl-6.5">
+                  Confirmation required prior to dispatching statutory complaints to DoCA / NCH.
+                </p>
+              )}
+            </div>
+
+            {/* Action Buttons */}
             <div className="flex flex-wrap items-center gap-2.5 pt-1">
               <button
                 id="report-gov-gmail-btn"
-                onClick={handleReportToGovernmentViaGmail}
+                onClick={() => {
+                  if (!hasCheckedPhysicalProduct) {
+                    setIsConfirmModalOpen(true);
+                  } else {
+                    handleReportToGovernmentViaGmail();
+                  }
+                }}
                 disabled={isReportingToGov}
-                className="flex items-center gap-2 bg-rose-900/80 hover:bg-rose-800/90 disabled:opacity-70 text-rose-100 border border-rose-700/60 text-xs font-mono font-semibold px-4 py-2 rounded-md shadow-xs transition-all cursor-pointer"
-                title="Single click: Generates official PDF proof report and opens Gmail with pre-filled statutory grievance letter"
+                className={`flex items-center gap-2 text-xs font-mono font-semibold px-4 py-2 rounded-md shadow-xs transition-all ${
+                  hasCheckedPhysicalProduct
+                    ? 'bg-rose-900/90 hover:bg-rose-800 text-rose-100 border border-rose-700 cursor-pointer'
+                    : 'bg-rose-950/40 hover:bg-rose-950/60 text-rose-300/80 border border-rose-900/50 cursor-pointer'
+                }`}
+                title={
+                  hasCheckedPhysicalProduct
+                    ? 'Generates official PDF proof report and opens Gmail with pre-filled statutory grievance letter'
+                    : 'Confirmation required: I have checked this on the physical product.'
+                }
               >
                 {isReportingToGov ? (
                   <>
@@ -1513,6 +1551,74 @@ FSSAI Consumer Grievance: compliance@fssai.gov.in`;
                   Download PDF With Proof
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Step Modal for Reporting to Government */}
+      {isConfirmModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 sm:p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-100">
+                  Confirmation Step Before Sending
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Statutory Grievance Escalation &bull; Department of Consumer Affairs
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Before dispatching this formal statutory complaint to the Department of Consumer Affairs and National Consumer Helpline, please confirm that the detected non-compliance was verified on the actual packaging.
+            </p>
+
+            <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-3.5">
+              <label className="flex items-start gap-3 cursor-pointer text-xs text-slate-200 select-none">
+                <input
+                  type="checkbox"
+                  id="modal-confirm-physical-product-check"
+                  checked={hasCheckedPhysicalProduct}
+                  onChange={(e) => setHasCheckedPhysicalProduct(e.target.checked)}
+                  className="w-4.5 h-4.5 mt-0.5 rounded border-slate-700 bg-slate-900 text-rose-600 focus:ring-rose-500 cursor-pointer accent-rose-600 shrink-0"
+                />
+                <span className="font-semibold text-slate-100 leading-snug">
+                  I have checked this on the physical product.
+                </span>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsConfirmModalOpen(false)}
+                className="px-3.5 py-2 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                id="modal-confirm-send-btn"
+                disabled={!hasCheckedPhysicalProduct || isReportingToGov}
+                onClick={async () => {
+                  if (!hasCheckedPhysicalProduct) return;
+                  setIsConfirmModalOpen(false);
+                  await handleReportToGovernmentViaGmail();
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-mono font-semibold transition-all shadow-xs ${
+                  hasCheckedPhysicalProduct
+                    ? 'bg-rose-900/90 hover:bg-rose-800 text-rose-100 border border-rose-700 cursor-pointer'
+                    : 'bg-slate-800 text-slate-500 border border-slate-700/60 cursor-not-allowed opacity-60'
+                }`}
+              >
+                <Mail className="w-3.5 h-3.5" />
+                <span>Confirm &amp; Send via Gmail</span>
+              </button>
             </div>
           </div>
         </div>
