@@ -73,7 +73,7 @@ export const ScannerSection: React.FC<ScannerSectionProps> = ({
   onLoadSample,
 }) => {
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>('Snacks & Confectionery');
+  const [activeCategory, setActiveCategory] = useState<string>('');
   const [inspectorNotes, setInspectorNotes] = useState<string>('');
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
@@ -187,7 +187,8 @@ export const ScannerSection: React.FC<ScannerSectionProps> = ({
       alert('Please upload or capture at least one package panel image (Front / MRP / Back).');
       return;
     }
-    onAnalyze(selectedImages, activeCategory, inspectorNotes, {
+    const categoryForAnalysis = (!activeCategory || activeCategory === 'none') ? '' : activeCategory;
+    onAnalyze(selectedImages, categoryForAnalysis, inspectorNotes, {
       enabled: useCalibration,
       referenceObjectType,
     });
@@ -636,6 +637,8 @@ export const ScannerSection: React.FC<ScannerSectionProps> = ({
                 onChange={(e) => setActiveCategory(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg p-2.5 focus:border-sky-500 focus:outline-none cursor-pointer"
               >
+                <option value="">-- Select Commodity Classification --</option>
+                <option value="none">None / Not Applicable (General Commodity)</option>
                 {COMMODITY_CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
                     {cat}
@@ -651,8 +654,9 @@ export const ScannerSection: React.FC<ScannerSectionProps> = ({
                 <span>Schedule II Standard Pack Sizes:</span>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
-                {STANDARD_PACK_RULES.find((r) => r.commodity === activeCategory)?.standardSizes ||
-                  'General packaged commodity provisions under Chapter II, Rule 6 apply.'}
+                {activeCategory && activeCategory !== 'none' && STANDARD_PACK_RULES.find((r) => r.commodity === activeCategory)?.standardSizes
+                  ? STANDARD_PACK_RULES.find((r) => r.commodity === activeCategory)?.standardSizes
+                  : 'General packaged commodity provisions under Chapter II, Rule 6 apply.'}
               </p>
             </div>
 
