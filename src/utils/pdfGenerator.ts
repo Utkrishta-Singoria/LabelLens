@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { InspectionReport } from '../types';
+import { checkReportForAllergens, getUserAllergens } from './allergenChecker';
 
 interface LoadedImage {
   dataUrl: string;
@@ -112,7 +113,10 @@ function createEvidencePlaceholder(label: string): LoadedImage {
   };
 }
 
-export async function generateInspectionPDF(report: InspectionReport): Promise<void> {
+export async function generateInspectionPDF(
+  report: InspectionReport,
+  userAllergens?: string[]
+): Promise<void> {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -169,8 +173,18 @@ export async function generateInspectionPDF(report: InspectionReport): Promise<v
   doc.setTextColor(100, 116, 139);
   doc.text(`Report Ref: ${report.id}  |  Generated: ${new Date(report.timestamp || Date.now()).toLocaleString()}  |  Rule: Legal Metrology Rules, 2011`, 14, y);
 
+  // Mandatory AI Result Disclaimer Line
+  y += 3.5;
+  doc.setFillColor(254, 242, 242);
+  doc.setDrawColor(254, 202, 202);
+  doc.roundedRect(14, y, pageWidth - 28, 5.5, 0.8, 0.8, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.2);
+  doc.setTextColor(185, 28, 28);
+  doc.text('AI-generated result. It may contain errors or omissions and is not an official finding of non-compliance. Verify on the physical product before relying on or reporting it.', pageWidth / 2, y + 3.8, { align: 'center' });
+
   // Inspector & Status Info Box WITH EMBEDDED THUMBNAIL
-  y += 4.5;
+  y += 4;
   const infoBoxHeight = 24;
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
@@ -351,7 +365,12 @@ export async function generateInspectionPDF(report: InspectionReport): Promise<v
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
-  const remarkLines = doc.splitTextToSize(report.inspectorRemarks || 'Inspected as per standard statutory audit protocol under Legal Metrology Act, 2009. Photographic evidence attached in Annexure I.', pageWidth - 36);
+  const detectedAllergens = checkReportForAllergens(report, userAllergens || getUserAllergens());
+  const allergenPrefix = detectedAllergens.length > 0
+    ? `[ALLERGEN ALERT: Matches user watchlist for ${detectedAllergens.map((m) => m.allergen).join(', ')}] `
+    : '';
+  const baseRemark = report.inspectorRemarks || 'Inspected as per standard statutory audit protocol under Legal Metrology Act, 2009. Photographic evidence attached in Annexure I.';
+  const remarkLines = doc.splitTextToSize(`${allergenPrefix}${baseRemark}`, pageWidth - 36);
   doc.text(remarkLines, 18, y + 4.5);
 
   // Signatures on Page 1
@@ -366,9 +385,12 @@ export async function generateInspectionPDF(report: InspectionReport): Promise<v
   doc.line(pageWidth - 70, y, pageWidth - 20, y);
 
   // Footer Page 1
+  doc.setFontSize(6.2);
+  doc.setTextColor(100, 116, 139);
+  doc.text('AI-generated result. It may contain errors or omissions and is not an official finding of non-compliance. Verify on the physical product before relying on or reporting it.', pageWidth / 2, 287, { align: 'center' });
   doc.setFontSize(7);
   doc.setTextColor(148, 163, 184);
-  doc.text('Page 1 of 2  |  Legal Metrology Statutory Compliance Dossier  |  Ministry of Consumer Affairs, GOI', pageWidth / 2, 290, { align: 'center' });
+  doc.text('Page 1 of 2  |  Legal Metrology Statutory Compliance Dossier  |  Ministry of Consumer Affairs, GOI', pageWidth / 2, 291, { align: 'center' });
 
 
   // --- PAGE 2: ANNEXURE I - STATUTORY PHOTOGRAPHIC EVIDENCE & COMMODITY PROOFS ---
@@ -623,9 +645,12 @@ export async function generateInspectionPDF(report: InspectionReport): Promise<v
   doc.text(`Date & Verification Seal: ${new Date(report.timestamp || Date.now()).toLocaleDateString()}`, pageWidth - 95, certY + 22);
 
   // Footer Page 2
+  doc.setFontSize(6.2);
+  doc.setTextColor(100, 116, 139);
+  doc.text('AI-generated result. It may contain errors or omissions and is not an official finding of non-compliance. Verify on the physical product before relying on or reporting it.', pageWidth / 2, 287, { align: 'center' });
   doc.setFontSize(7);
   doc.setTextColor(148, 163, 184);
-  doc.text('Page 2 of 2  |  Annexure I: Photographic Evidence Record  |  Department of Consumer Affairs, GOI', pageWidth / 2, 290, { align: 'center' });
+  doc.text('Page 2 of 2  |  Annexure I: Photographic Evidence Record  |  Department of Consumer Affairs, GOI', pageWidth / 2, 291, { align: 'center' });
 
   // 3. Trigger Download
   const fileName = `DoCA_Statutory_Report_${report.id}_${Date.now()}.pdf`;

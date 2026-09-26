@@ -50,17 +50,21 @@ import {
 import { generateInspectionPDF } from '../utils/pdfGenerator';
 import { normalizeDeclarationsTable } from '../utils/declarationTableHelper';
 import { NutritionIngredientsSection } from './NutritionIngredientsSection';
+import { getUserAllergens, checkReportForAllergens, AllergenMatchResult } from '../utils/allergenChecker';
+import { AllergenAlertBanner } from './AllergenAlertBanner';
 
 interface ReportViewProps {
   report: InspectionReport;
   onUpdateReport: (updatedReport: InspectionReport) => void;
   onNewScan: () => void;
+  userAllergens?: string[];
 }
 
 export const ReportView: React.FC<ReportViewProps> = ({
   report,
   onUpdateReport,
   onNewScan,
+  userAllergens,
 }) => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editedReport, setEditedReport] = useState<InspectionReport>(report);
@@ -68,13 +72,35 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const [isReportingToGov, setIsReportingToGov] = useState<boolean>(false);
   const [copiedGrievance, setCopiedGrievance] = useState<boolean>(false);
   const [showReportSuccessNotice, setShowReportSuccessNotice] = useState<boolean>(false);
-  const [hasCheckedPhysicalProduct, setHasCheckedPhysicalProduct] = useState<boolean>(false);
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
+  const [hasVerifiedPhysicalProduct, setHasVerifiedPhysicalProduct] = useState<boolean>(false);
+
+  // User allergen watchlist state and cross-tab listener
+  const [activeUserAllergens, setActiveUserAllergens] = useState<string[]>(() => {
+    return userAllergens && userAllergens.length > 0 ? userAllergens : getUserAllergens();
+  });
+
+  useEffect(() => {
+    if (userAllergens) {
+      setActiveUserAllergens(userAllergens);
+    }
+  }, [userAllergens]);
+
+  useEffect(() => {
+    const handleSync = () => {
+      setActiveUserAllergens(getUserAllergens());
+    };
+    window.addEventListener('labellens_allergens_changed', handleSync);
+    return () => window.removeEventListener('labellens_allergens_changed', handleSync);
+  }, []);
+
+  const allergenMatches: AllergenMatchResult[] = useMemo(() => {
+    return checkReportForAllergens(editedReport, activeUserAllergens);
+  }, [editedReport, activeUserAllergens]);
 
   // Sync state if a new report is passed
   useEffect(() => {
     setEditedReport(report);
-    setHasCheckedPhysicalProduct(false);
+    setHasVerifiedPhysicalProduct(false);
   }, [report]);
 
   // Evidence Lightbox Inspector state
@@ -153,7 +179,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const handleDownloadPDF = async () => {
     setIsExporting(true);
     try {
-      await generateInspectionPDF(editedReport);
+      await generateInspectionPDF(editedReport, activeUserAllergens);
     } catch (err) {
       console.error('Failed to generate PDF:', err);
     } finally {
@@ -211,10 +237,13 @@ FSSAI Consumer Grievance: compliance@fssai.gov.in`;
 
   // Single-click workflow: compiles & downloads PDF proof and launches Gmail with pre-filled default message
   const handleReportToGovernmentViaGmail = async () => {
+    if (!hasVerifiedPhysicalProduct) {
+      return;
+    }
     setIsReportingToGov(true);
     try {
       // 1. Automatically generate & download the official PDF proof report
-      await generateInspectionPDF(editedReport);
+      await generateInspectionPDF(editedReport, activeUserAllergens);
 
       // 2. Format subject & comprehensive grievance letter
       const subject = `Statutory Non-Compliance Report: ${editedReport.productName || 'Packaged Commodity'} (Ref: ${editedReport.id})`;
@@ -456,6 +485,26 @@ FSSAI Consumer Grievance: compliance@fssai.gov.in`;
           </button>
         </div>
       </div>
+
+      {/* AI Disclaimer Notice for Result Screen */}
+      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
+        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+        <p className="leading-relaxed">
+          <span className="font-bold">Disclaimer: </span>
+          AI-generated result. It may contain errors or omissions and is not an official finding of non-compliance. Verify on the physical product before relying on or reporting it.
+        </p>
+      </div>
+
+      {/* Explicit User Allergen Watchlist Alert Banner */}
+      {allergenMatches.length > 0 && (
+        <AllergenAlertBanner
+          matches={allergenMatches}
+          onScrollToNutrition={() => {
+            const el = document.getElementById('nutrition-ingredients-section');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }}
+        />
+      )}
 
       {/* Primary Score & Status Card */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -1130,48 +1179,37 @@ FSSAI Consumer Grievance: compliance@fssai.gov.in`;
               Statutory infractions detected under the Legal Metrology (Packaged Commodities) Rules, 2011 are liable for regulatory inquiry and compounding under Section 36 of the Legal Metrology Act, 2009. You can report this violation directly to the Department of Consumer Affairs with attached evidentiary proof.
             </p>
 
-            {/* Confirmation Step Before Sending */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-3 my-1">
-              <label className="flex items-start sm:items-center gap-2.5 cursor-pointer text-xs text-slate-200 select-none">
+            {/* Physical Verification Confirmation Step */}
+            <div className="pt-1">
+              <label className="flex items-center gap-2.5 p-2.5 rounded-lg border border-slate-800 bg-slate-950/70 hover:bg-slate-950 text-xs cursor-pointer select-none transition-all">
                 <input
                   type="checkbox"
-                  id="confirm-physical-product-check"
-                  checked={hasCheckedPhysicalProduct}
-                  onChange={(e) => setHasCheckedPhysicalProduct(e.target.checked)}
-                  className="w-4 h-4 mt-0.5 sm:mt-0 rounded border-slate-700 bg-slate-950 text-rose-600 focus:ring-rose-500 cursor-pointer accent-rose-600 shrink-0"
+                  id="confirm-physical-verification-chk"
+                  checked={hasVerifiedPhysicalProduct}
+                  onChange={(e) => setHasVerifiedPhysicalProduct(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-rose-600 focus:ring-rose-500/40 focus:ring-offset-0 cursor-pointer accent-rose-600"
                 />
-                <span className="font-semibold text-slate-100">
+                <span className={`font-medium ${hasVerifiedPhysicalProduct ? 'text-rose-200' : 'text-slate-300'}`}>
                   I have checked this on the physical product.
                 </span>
               </label>
-              {!hasCheckedPhysicalProduct && (
-                <p className="text-[11px] text-slate-400 mt-1 pl-6.5">
-                  Confirmation required prior to dispatching statutory complaints to DoCA / NCH.
-                </p>
-              )}
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-2.5 pt-1">
+            {/* Single-Click Action Button */}
+            <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
               <button
                 id="report-gov-gmail-btn"
-                onClick={() => {
-                  if (!hasCheckedPhysicalProduct) {
-                    setIsConfirmModalOpen(true);
-                  } else {
-                    handleReportToGovernmentViaGmail();
-                  }
-                }}
-                disabled={isReportingToGov}
+                onClick={handleReportToGovernmentViaGmail}
+                disabled={isReportingToGov || !hasVerifiedPhysicalProduct}
                 className={`flex items-center gap-2 text-xs font-mono font-semibold px-4 py-2 rounded-md shadow-xs transition-all ${
-                  hasCheckedPhysicalProduct
-                    ? 'bg-rose-900/90 hover:bg-rose-800 text-rose-100 border border-rose-700 cursor-pointer'
-                    : 'bg-rose-950/40 hover:bg-rose-950/60 text-rose-300/80 border border-rose-900/50 cursor-pointer'
+                  hasVerifiedPhysicalProduct && !isReportingToGov
+                    ? 'bg-rose-900/80 hover:bg-rose-800/90 text-rose-100 border border-rose-700/60 cursor-pointer'
+                    : 'bg-slate-900/60 text-slate-500 border border-slate-800 cursor-not-allowed opacity-60'
                 }`}
                 title={
-                  hasCheckedPhysicalProduct
-                    ? 'Generates official PDF proof report and opens Gmail with pre-filled statutory grievance letter'
-                    : 'Confirmation required: I have checked this on the physical product.'
+                  !hasVerifiedPhysicalProduct
+                    ? 'Please confirm that you have checked this on the physical product before sending.'
+                    : 'Single click: Generates official PDF proof report and opens Gmail with pre-filled statutory grievance letter'
                 }
               >
                 {isReportingToGov ? (
@@ -1392,13 +1430,17 @@ FSSAI Consumer Grievance: compliance@fssai.gov.in`;
       </div>
 
       {/* NUTRIENTS & INGREDIENTS STATUTORY AUDIT BREAKDOWN */}
-      <NutritionIngredientsSection
-        nutritionData={nutritionData}
-        isEditing={isEditing}
-        onChange={handleNutritionChange}
-        productName={editedReport.productName}
-        category={editedReport.category}
-      />
+      <div id="nutrition-ingredients-section">
+        <NutritionIngredientsSection
+          nutritionData={nutritionData}
+          isEditing={isEditing}
+          onChange={handleNutritionChange}
+          productName={editedReport.productName}
+          category={editedReport.category}
+          userAllergens={activeUserAllergens}
+          matchedAllergens={allergenMatches}
+        />
+      </div>
 
       {/* FORENSIC LIGHTBOX MODAL FOR IMAGE PROOF */}
       {activeProofIndex !== null && imageProofs[activeProofIndex] && (
@@ -1556,73 +1598,10 @@ FSSAI Consumer Grievance: compliance@fssai.gov.in`;
         </div>
       )}
 
-      {/* Confirmation Step Modal for Reporting to Government */}
-      {isConfirmModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 sm:p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-lg bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
-                <ShieldAlert className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-bold text-sm text-slate-100">
-                  Confirmation Step Before Sending
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Statutory Grievance Escalation &bull; Department of Consumer Affairs
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Before dispatching this formal statutory complaint to the Department of Consumer Affairs and National Consumer Helpline, please confirm that the detected non-compliance was verified on the actual packaging.
-            </p>
-
-            <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-3.5">
-              <label className="flex items-start gap-3 cursor-pointer text-xs text-slate-200 select-none">
-                <input
-                  type="checkbox"
-                  id="modal-confirm-physical-product-check"
-                  checked={hasCheckedPhysicalProduct}
-                  onChange={(e) => setHasCheckedPhysicalProduct(e.target.checked)}
-                  className="w-4.5 h-4.5 mt-0.5 rounded border-slate-700 bg-slate-900 text-rose-600 focus:ring-rose-500 cursor-pointer accent-rose-600 shrink-0"
-                />
-                <span className="font-semibold text-slate-100 leading-snug">
-                  I have checked this on the physical product.
-                </span>
-              </label>
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsConfirmModalOpen(false)}
-                className="px-3.5 py-2 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                id="modal-confirm-send-btn"
-                disabled={!hasCheckedPhysicalProduct || isReportingToGov}
-                onClick={async () => {
-                  if (!hasCheckedPhysicalProduct) return;
-                  setIsConfirmModalOpen(false);
-                  await handleReportToGovernmentViaGmail();
-                }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-mono font-semibold transition-all shadow-xs ${
-                  hasCheckedPhysicalProduct
-                    ? 'bg-rose-900/90 hover:bg-rose-800 text-rose-100 border border-rose-700 cursor-pointer'
-                    : 'bg-slate-800 text-slate-500 border border-slate-700/60 cursor-not-allowed opacity-60'
-                }`}
-              >
-                <Mail className="w-3.5 h-3.5" />
-                <span>Confirm &amp; Send via Gmail</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Bottom Result Screen Disclaimer */}
+      <div className="bg-[#FAF7F2] dark:bg-slate-900/70 border border-[#D8CCC0] dark:border-slate-800 rounded-lg p-3 text-center text-xs text-[#332421]/80 dark:text-slate-400">
+        AI-generated result. It may contain errors or omissions and is not an official finding of non-compliance. Verify on the physical product before relying on or reporting it.
+      </div>
     </div>
   );
 };

@@ -13,8 +13,10 @@ import {
   Leaf,
   Beef,
   Ban,
+  AlertTriangle,
 } from 'lucide-react';
 import { NutrientItem, NutritionAndIngredientsData } from '../types';
+import { AllergenMatchResult } from '../utils/allergenChecker';
 
 interface NutritionIngredientsSectionProps {
   nutritionData?: NutritionAndIngredientsData;
@@ -22,6 +24,8 @@ interface NutritionIngredientsSectionProps {
   onChange?: (updated: NutritionAndIngredientsData) => void;
   productName?: string;
   category?: string;
+  userAllergens?: string[];
+  matchedAllergens?: AllergenMatchResult[];
 }
 
 export const NutritionIngredientsSection: React.FC<NutritionIngredientsSectionProps> = ({
@@ -30,11 +34,29 @@ export const NutritionIngredientsSection: React.FC<NutritionIngredientsSectionPr
   onChange,
   productName = 'Packaged Commodity',
   category = 'Food / Packaged Commodity',
+  userAllergens = [],
+  matchedAllergens = [],
 }) => {
   const [copiedRawText, setCopiedRawText] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'nutrition' | 'ingredients'>('all');
   const [newIngredientInput, setNewIngredientInput] = useState('');
   const [newAllergenInput, setNewAllergenInput] = useState('');
+
+  const isIngredientMatched = (ing: string) => {
+    if (!matchedAllergens || matchedAllergens.length === 0) return null;
+    return matchedAllergens.find((m) =>
+      m.foundInIngredients.some((fi) => fi.toLowerCase() === ing.toLowerCase()) ||
+      m.matchedTerms.some((term) => new RegExp(`\\b${term}`, 'i').test(ing))
+    );
+  };
+
+  const isDeclarationMatched = (decl: string) => {
+    if (!matchedAllergens || matchedAllergens.length === 0) return null;
+    return matchedAllergens.find((m) =>
+      m.foundInDeclarations.some((fd) => fd.toLowerCase() === decl.toLowerCase()) ||
+      m.matchedTerms.some((term) => new RegExp(`\\b${term}`, 'i').test(decl))
+    );
+  };
 
   // Fallback defaults
   const data: NutritionAndIngredientsData = nutritionData || {
@@ -534,25 +556,42 @@ export const NutritionIngredientsSection: React.FC<NutritionIngredientsSectionPr
 
               <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-1">
                 {data.ingredientsList && data.ingredientsList.length > 0 ? (
-                  data.ingredientsList.map((ing, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-800/90 text-slate-200 border border-slate-700/80 text-[11px] font-sans"
-                    >
-                      <span className="text-emerald-400 font-mono text-[9px] font-bold">
-                        #{idx + 1}
-                      </span>
-                      {ing}
-                      {isEditing && (
-                        <button
-                          onClick={() => handleRemoveIngredient(idx)}
-                          className="text-rose-400 hover:text-rose-300 ml-0.5"
+                  data.ingredientsList.map((ing, idx) => {
+                    const matchedAllergen = isIngredientMatched(ing);
+                    return (
+                      <span
+                        key={idx}
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-sans transition-all ${
+                          matchedAllergen
+                            ? 'bg-rose-950/90 text-rose-200 border-2 border-rose-500 font-bold ring-1 ring-rose-500/40 shadow-xs'
+                            : 'bg-slate-800/90 text-slate-200 border border-slate-700/80'
+                        }`}
+                      >
+                        <span
+                          className={`font-mono text-[9px] font-bold ${
+                            matchedAllergen ? 'text-rose-400' : 'text-emerald-400'
+                          }`}
                         >
-                          &times;
-                        </button>
-                      )}
-                    </span>
-                  ))
+                          #{idx + 1}
+                        </span>
+                        {ing}
+                        {matchedAllergen && (
+                          <span className="inline-flex items-center gap-0.5 bg-rose-600 text-white text-[9px] font-mono font-extrabold px-1 rounded ml-1">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            {matchedAllergen.allergen}
+                          </span>
+                        )}
+                        {isEditing && (
+                          <button
+                            onClick={() => handleRemoveIngredient(idx)}
+                            className="text-rose-400 hover:text-rose-300 ml-0.5"
+                          >
+                            &times;
+                          </button>
+                        )}
+                      </span>
+                    );
+                  })
                 ) : (
                   <span className="text-xs text-slate-500 italic">
                     No discrete ingredients identified.
@@ -586,30 +625,65 @@ export const NutritionIngredientsSection: React.FC<NutritionIngredientsSectionPr
             </div>
 
             {/* Allergen & Statutory Safety Warnings */}
-            <div className="bg-amber-950/20 border border-amber-900/50 rounded-lg p-3 space-y-2">
-              <div className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-amber-400 uppercase tracking-wider">
-                <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
-                Allergen Advice & Statutory Cautions
+            <div className="bg-amber-950/20 border border-amber-900/50 rounded-lg p-3 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-amber-400 uppercase tracking-wider">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+                  Allergen Advice & Statutory Cautions
+                </div>
+                {matchedAllergens.length > 0 && (
+                  <span className="text-[10px] font-mono font-bold text-rose-300 bg-rose-950/80 border border-rose-600/70 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-rose-400" />
+                    {matchedAllergens.length} Flagged from Watchlist
+                  </span>
+                )}
               </div>
+
+              {matchedAllergens.length > 0 && (
+                <div className="bg-rose-950/80 border border-rose-500/70 rounded-lg p-2.5 text-xs text-rose-200 space-y-1">
+                  <div className="font-bold font-mono text-rose-300 flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                    <span>WATCHLIST ALLERGEN ALERT DETECTED</span>
+                  </div>
+                  <p className="text-[11px] text-rose-200/90 leading-snug">
+                    This product contains declarations or ingredients matching your monitored allergies ({matchedAllergens.map((m) => m.allergen).join(', ')}).
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 {data.allergenDeclarations && data.allergenDeclarations.length > 0 ? (
-                  data.allergenDeclarations.map((allergen, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-start justify-between gap-2 text-xs font-sans text-amber-200/90 bg-amber-950/40 border border-amber-800/40 px-2 py-1 rounded"
-                    >
-                      <span className="leading-snug">&bull; {allergen}</span>
-                      {isEditing && (
-                        <button
-                          onClick={() => handleRemoveAllergen(idx)}
-                          className="text-rose-400 hover:text-rose-300"
-                        >
-                          &times;
-                        </button>
-                      )}
-                    </div>
-                  ))
+                  data.allergenDeclarations.map((allergen, idx) => {
+                    const matchedDecl = isDeclarationMatched(allergen);
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex items-start justify-between gap-2 text-xs font-sans px-2.5 py-1.5 rounded transition-all ${
+                          matchedDecl
+                            ? 'bg-rose-950/90 border-2 border-rose-500 text-rose-100 font-medium shadow-2xs'
+                            : 'text-amber-200/90 bg-amber-950/40 border border-amber-800/40'
+                        }`}
+                      >
+                        <div className="space-y-1 flex-1">
+                          <span className="leading-snug block">&bull; {allergen}</span>
+                          {matchedDecl && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-extrabold text-rose-200 bg-rose-600 px-2 py-0.5 rounded shadow-xs">
+                              <AlertTriangle className="w-3 h-3 text-white" />
+                              MATCHES YOUR ALLERGY: {matchedDecl.allergen}
+                            </span>
+                          )}
+                        </div>
+                        {isEditing && (
+                          <button
+                            onClick={() => handleRemoveAllergen(idx)}
+                            className="text-rose-400 hover:text-rose-300"
+                          >
+                            &times;
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
                 ) : (
                   <div className="text-xs font-sans text-slate-400 italic">
                     No specific allergen warnings or cross-contamination cautions detected.

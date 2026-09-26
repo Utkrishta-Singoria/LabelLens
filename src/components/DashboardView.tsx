@@ -26,6 +26,8 @@ import {
   Target,
 } from 'lucide-react';
 import { generateInspectionPDF } from '../utils/pdfGenerator';
+import { AllergenWatchlistSection } from './AllergenWatchlistSection';
+import { getUserAllergens, saveUserAllergens } from '../utils/allergenChecker';
 
 interface DashboardViewProps {
   inspections: InspectionReport[];
@@ -48,6 +50,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'COMPLIANT' | 'NON_COMPLIANT'>('ALL');
   const [selectedInspection, setSelectedInspection] = useState<InspectionReport | null>(null);
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
+
+  // User allergen watchlist state
+  const [userAllergens, setUserAllergens] = useState<string[]>(() => {
+    return getUserAllergens(currentUser?.id);
+  });
+
+  const handleAddAllergen = (item: string) => {
+    const updated = Array.from(new Set([...userAllergens, item.trim()]));
+    setUserAllergens(updated);
+    saveUserAllergens(updated, currentUser?.id);
+  };
+
+  const handleRemoveAllergen = (item: string) => {
+    const updated = userAllergens.filter((a) => a.toLowerCase() !== item.toLowerCase());
+    setUserAllergens(updated);
+    saveUserAllergens(updated, currentUser?.id);
+  };
+
+  const handleClearAllergens = () => {
+    setUserAllergens([]);
+    saveUserAllergens([], currentUser?.id);
+  };
 
   const handleDownloadPDF = async (item: InspectionReport) => {
     setDownloadingPdfId(item.id);
@@ -141,6 +165,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Enforcement under the Legal Metrology (Packaged Commodities) Rules, 2011
           </div>
         </div>
+
+        {/* Personal Allergen Watchlist Configuration */}
+        <AllergenWatchlistSection
+          allergens={userAllergens}
+          onAddAllergen={handleAddAllergen}
+          onRemoveAllergen={handleRemoveAllergen}
+          onClearAll={handleClearAllergens}
+        />
       </div>
     );
   }
@@ -293,6 +325,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <span>New Inspection Scan</span>
         </button>
       </div>
+
+      {/* Personal Allergen Watchlist Section */}
+      <AllergenWatchlistSection
+        allergens={userAllergens}
+        onAddAllergen={handleAddAllergen}
+        onRemoveAllergen={handleRemoveAllergen}
+        onClearAll={handleClearAllergens}
+      />
 
       {/* Key Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

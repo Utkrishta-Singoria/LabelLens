@@ -6,6 +6,8 @@ import { ReportView } from './components/ReportView';
 import { DashboardView } from './components/DashboardView';
 import { RulesReferenceView } from './components/RulesReferenceView';
 import { AuthModal } from './components/AuthModal';
+import { DisclaimerModal } from './components/DisclaimerModal';
+import { getUserAllergens } from './utils/allergenChecker';
 import { SAMPLE_PRODUCTS, executeClientSideComplianceCheck } from './data/legalMetrologyRules';
 import { normalizeDeclarationsTable } from './utils/declarationTableHelper';
 import { sanitizeNutritionData } from './utils/nutritionHelper';
@@ -81,6 +83,7 @@ export default function App() {
       return 'light';
     }
   });
+  const [isDisclaimerModalOpen, setIsDisclaimerModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     try {
@@ -120,6 +123,24 @@ export default function App() {
       } catch {}
     }
   }, [currentUser]);
+
+  // User allergen watchlist state synced across tabs and components
+  const [userAllergens, setUserAllergens] = useState<string[]>(() => {
+    return getUserAllergens(currentUser?.id);
+  });
+
+  useEffect(() => {
+    setUserAllergens(getUserAllergens(currentUser?.id));
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    const handleSync = (e: any) => {
+      const updated = e.detail?.allergens || getUserAllergens(currentUser?.id);
+      setUserAllergens(updated);
+    };
+    window.addEventListener('labellens_allergens_changed', handleSync);
+    return () => window.removeEventListener('labellens_allergens_changed', handleSync);
+  }, [currentUser?.id]);
 
   // Verify active session on startup with backend
   useEffect(() => {
@@ -585,6 +606,7 @@ export default function App() {
                   report={activeReport}
                   onUpdateReport={handleUpdateReport}
                   onNewScan={handleNewScan}
+                  userAllergens={userAllergens}
                 />
               ) : (
                 <ScannerSection
@@ -615,21 +637,42 @@ export default function App() {
       </main>
 
       {/* High Density Footer Bar */}
-      <footer className="bg-[#EFE8DC] dark:bg-[#0F1117] border-t border-[#E2D7C7] dark:border-slate-800/80 py-3 px-4 text-[#332421]/75 dark:text-slate-500 text-[10px] font-mono select-none">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="packcheck-heading labellens-heading text-[#D4AF37] font-bold">LabelLens AI</span>
-            <span>&bull;</span>
-            <span>DoCA Legal Metrology Enforcement Portal</span>
-            <span>&bull;</span>
-            <span className="text-[#8E562E] dark:text-sky-400 font-semibold">Problem Statement ID: 26034</span>
-            <span>&bull;</span>
-            <span className="font-bold text-[#8E562E] dark:text-sky-400 tracking-wide">BUILD BY TEAM STRAW HATS</span>
+      <footer className="bg-[#EFE8DC] dark:bg-[#0F1117] border-t border-[#E2D7C7] dark:border-slate-800/80 py-3.5 px-4 text-[#332421]/80 dark:text-slate-400 text-xs">
+        <div className="max-w-7xl mx-auto space-y-2.5">
+          {/* Always-visible Mandatory Disclaimer Line */}
+          <div className="bg-[#E5DACB] dark:bg-[#161922] border border-[#D5C7B7] dark:border-slate-800 rounded-lg px-4 py-2 text-center text-xs leading-relaxed text-[#332421] dark:text-slate-300 shadow-2xs">
+            <span>LabelLens uses AI and can make mistakes. Results are informational only and are not an official legal determination. Always verify against the physical product and the Legal Metrology (Packaged Commodities) Rules, 2011.{' '}</span>
+            <button
+              type="button"
+              onClick={() => setIsDisclaimerModalOpen(true)}
+              className="text-[#8E562E] dark:text-sky-400 hover:underline font-semibold cursor-pointer inline-flex items-center gap-0.5 ml-1"
+            >
+              Read the full disclaimer.
+            </button>
           </div>
-          <div className="flex items-center gap-4">
-            <span>Act Penalty Code: Sec 36(1)</span>
-            <span>Schedule II Standard Metrics</span>
-            <span className="text-slate-600">SYSTEM_REV: 4.2.0-STABLE</span>
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-[10px] font-mono text-[#332421]/75 dark:text-slate-500 select-none">
+            <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
+              <span className="packcheck-heading labellens-heading text-[#D4AF37] font-bold">LabelLens AI</span>
+              <span>&bull;</span>
+              <span>DoCA Legal Metrology Enforcement Portal</span>
+              <span>&bull;</span>
+              <span className="text-[#8E562E] dark:text-sky-400 font-semibold">Problem Statement ID: 26034</span>
+              <span>&bull;</span>
+              <span className="font-bold text-[#8E562E] dark:text-sky-400 tracking-wide">BUILD BY TEAM STRAW HATS</span>
+            </div>
+            <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-center sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setIsDisclaimerModalOpen(true)}
+                className="text-[#8E562E] dark:text-slate-400 hover:text-[#332421] dark:hover:text-slate-200 underline cursor-pointer"
+              >
+                Disclaimer
+              </button>
+              <span>Act Penalty Code: Sec 36(1)</span>
+              <span>Schedule II Standard Metrics</span>
+              <span className="text-slate-600">SYSTEM_REV: 4.2.0-STABLE</span>
+            </div>
           </div>
         </div>
       </footer>
@@ -645,6 +688,12 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Full Disclaimer Modal */}
+      <DisclaimerModal
+        isOpen={isDisclaimerModalOpen}
+        onClose={() => setIsDisclaimerModalOpen(false)}
+      />
     </div>
   );
 }
