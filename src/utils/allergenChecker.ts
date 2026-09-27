@@ -46,19 +46,17 @@ export interface AllergenMatchResult {
 
 /**
  * Retrieve saved allergens for user from local storage
+ * Strictly isolated per user ID - each authenticated user has their own unique watchlist.
  */
 export function getUserAllergens(userId?: string): string[] {
+  if (!userId) {
+    return [];
+  }
   try {
-    const userKey = userId ? `labellens_allergens_${userId}` : 'labellens_user_allergens';
+    const userKey = `labellens_allergens_${userId}`;
     const saved = localStorage.getItem(userKey);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return parsed;
-    }
-    // Fallback to shared key if user-specific key not yet set
-    const shared = localStorage.getItem('labellens_user_allergens');
-    if (shared) {
-      const parsed = JSON.parse(shared);
       if (Array.isArray(parsed)) return parsed;
     }
   } catch (e) {
@@ -69,17 +67,18 @@ export function getUserAllergens(userId?: string): string[] {
 
 /**
  * Save user allergens to local storage and dispatch cross-component sync event
+ * Strictly isolated per user ID.
  */
 export function saveUserAllergens(allergens: string[], userId?: string): void {
+  if (!userId) {
+    return;
+  }
   try {
     const cleaned = Array.from(new Set(allergens.map((a) => a.trim()).filter(Boolean)));
     const json = JSON.stringify(cleaned);
-    if (userId) {
-      localStorage.setItem(`labellens_allergens_${userId}`, json);
-    }
-    localStorage.setItem('labellens_user_allergens', json);
+    localStorage.setItem(`labellens_allergens_${userId}`, json);
 
-    // Notify other components (ReportView, Dashboard, etc.)
+    // Notify other components for this specific user
     window.dispatchEvent(
       new CustomEvent('labellens_allergens_changed', {
         detail: { allergens: cleaned, userId },

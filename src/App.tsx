@@ -135,8 +135,10 @@ export default function App() {
 
   useEffect(() => {
     const handleSync = (e: any) => {
-      const updated = e.detail?.allergens || getUserAllergens(currentUser?.id);
-      setUserAllergens(updated);
+      if (e.detail?.userId && currentUser?.id && e.detail.userId !== currentUser.id) {
+        return;
+      }
+      setUserAllergens(getUserAllergens(currentUser?.id));
     };
     window.addEventListener('labellens_allergens_changed', handleSync);
     return () => window.removeEventListener('labellens_allergens_changed', handleSync);

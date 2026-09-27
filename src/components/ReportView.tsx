@@ -74,24 +74,32 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const [showReportSuccessNotice, setShowReportSuccessNotice] = useState<boolean>(false);
   const [hasVerifiedPhysicalProduct, setHasVerifiedPhysicalProduct] = useState<boolean>(false);
 
-  // User allergen watchlist state and cross-tab listener
+  // User allergen watchlist state strictly isolated to current user
   const [activeUserAllergens, setActiveUserAllergens] = useState<string[]>(() => {
-    return userAllergens && userAllergens.length > 0 ? userAllergens : getUserAllergens();
+    return userAllergens || getUserAllergens(report.userId);
   });
 
   useEffect(() => {
     if (userAllergens) {
       setActiveUserAllergens(userAllergens);
+    } else {
+      setActiveUserAllergens(getUserAllergens(report.userId));
     }
-  }, [userAllergens]);
+  }, [userAllergens, report.userId]);
 
   useEffect(() => {
-    const handleSync = () => {
-      setActiveUserAllergens(getUserAllergens());
+    const handleSync = (e: any) => {
+      if (e.detail?.userId && report.userId && e.detail.userId !== report.userId) {
+        return;
+      }
+      if (userAllergens) {
+        return;
+      }
+      setActiveUserAllergens(getUserAllergens(report.userId));
     };
     window.addEventListener('labellens_allergens_changed', handleSync);
     return () => window.removeEventListener('labellens_allergens_changed', handleSync);
-  }, []);
+  }, [userAllergens, report.userId]);
 
   const allergenMatches: AllergenMatchResult[] = useMemo(() => {
     return checkReportForAllergens(editedReport, activeUserAllergens);

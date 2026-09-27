@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { InspectionReport, User } from '../types';
 import {
   LayoutDashboard,
@@ -51,26 +51,48 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [selectedInspection, setSelectedInspection] = useState<InspectionReport | null>(null);
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
 
-  // User allergen watchlist state
+  // User allergen watchlist state strictly isolated to currentUser.id
   const [userAllergens, setUserAllergens] = useState<string[]>(() => {
     return getUserAllergens(currentUser?.id);
   });
 
+  // Re-sync whenever logged in user changes
+  useEffect(() => {
+    setUserAllergens(getUserAllergens(currentUser?.id));
+  }, [currentUser?.id]);
+
+  // Listen for sync events strictly for this specific user
+  useEffect(() => {
+    const handleSync = (e: any) => {
+      if (e.detail?.userId && currentUser?.id && e.detail.userId !== currentUser.id) {
+        return;
+      }
+      setUserAllergens(getUserAllergens(currentUser?.id));
+    };
+    window.addEventListener('labellens_allergens_changed', handleSync);
+    return () => window.removeEventListener('labellens_allergens_changed', handleSync);
+  }, [currentUser?.id]);
+
   const handleAddAllergen = (item: string) => {
-    const updated = Array.from(new Set([...userAllergens, item.trim()]));
+    if (!currentUser?.id) return;
+    const current = getUserAllergens(currentUser.id);
+    const updated = Array.from(new Set([...current, item.trim()]));
     setUserAllergens(updated);
-    saveUserAllergens(updated, currentUser?.id);
+    saveUserAllergens(updated, currentUser.id);
   };
 
   const handleRemoveAllergen = (item: string) => {
-    const updated = userAllergens.filter((a) => a.toLowerCase() !== item.toLowerCase());
+    if (!currentUser?.id) return;
+    const current = getUserAllergens(currentUser.id);
+    const updated = current.filter((a) => a.toLowerCase() !== item.toLowerCase());
     setUserAllergens(updated);
-    saveUserAllergens(updated, currentUser?.id);
+    saveUserAllergens(updated, currentUser.id);
   };
 
   const handleClearAllergens = () => {
+    if (!currentUser?.id) return;
     setUserAllergens([]);
-    saveUserAllergens([], currentUser?.id);
+    saveUserAllergens([], currentUser.id);
   };
 
   const handleDownloadPDF = async (item: InspectionReport) => {
@@ -165,14 +187,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Enforcement under the Legal Metrology (Packaged Commodities) Rules, 2011
           </div>
         </div>
-
-        {/* Personal Allergen Watchlist Configuration */}
-        <AllergenWatchlistSection
-          allergens={userAllergens}
-          onAddAllergen={handleAddAllergen}
-          onRemoveAllergen={handleRemoveAllergen}
-          onClearAll={handleClearAllergens}
-        />
       </div>
     );
   }
